@@ -20,7 +20,7 @@ CREATE TABLE Users (
     email           NVARCHAR(100) UNIQUE NOT NULL,
     password_hash   NVARCHAR(255) NOT NULL,
     role            NVARCHAR(10)  NOT NULL DEFAULT 'Buyer'
-                        CHECK (role IN ('Buyer','Seller','Both')),
+                        CHECK (role IN ('Buyer','Seller','Both','Admin')),
     bio             NVARCHAR(MAX),
     profile_pic_url NVARCHAR(255),
     wallet_balance  DECIMAL(12,2) DEFAULT 0.00,

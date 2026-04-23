@@ -41,7 +41,7 @@ exports.create = async (req, res) => {
   }
 };
 
-// PUT update user
+// POST update user (or PUT)
 exports.update = async (req, res) => {
   try {
     const { username, email, bio, profile_pic_url, role, is_active } = req.body;
@@ -51,6 +51,44 @@ exports.update = async (req, res) => {
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: 'User not found' });
     res.json({ message: 'User updated' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// POST login user
+exports.login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    // Very basic check without bcrypt (assuming plain text for now as per create user logic)
+    const [rows] = await pool.query(
+      'SELECT user_id, username, email, role, is_active FROM Users WHERE email = ? AND password_hash = ?',
+      [email, password]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const user = rows[0];
+
+    // Check if user is active or banned
+    if (!user.is_active) {
+      return res.status(403).json({ error: 'Account is suspended or banned' });
+    }
+
+    // You can later add JSON Web Token (JWT) here
+    res.json({ 
+      message: 'Login successful', 
+      user: {
+        id: user.user_id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      } 
+    });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
