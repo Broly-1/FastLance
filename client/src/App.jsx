@@ -12,6 +12,7 @@ import SellerDashboard from './pages/SellerDashboard';
 import GigDetails from './pages/GigDetails';
 import BuyerOrders from './pages/BuyerOrders';
 import SellerOrders from './pages/SellerOrders';
+import MessagesPage from './pages/MessagesPage';
 import OrderDetails from './pages/OrderDetails';
 
 // A tiny helper component to route users to the right landing page if they hit "/"
@@ -86,6 +87,14 @@ function App() {
                     <SellerOrders />
                   </ProtectedRoute>
                 } 
+              />
+              <Route
+                path="/messages"
+                element={
+                  <ProtectedRoute allowedRoles={['Buyer', 'Seller', 'Both']}>
+                    <MessagesPage />
+                  </ProtectedRoute>
+                }
               />
             </Routes>
           </main>

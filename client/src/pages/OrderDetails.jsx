@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 
 const API_BASE_URL = 'http://localhost:3000';
@@ -498,6 +498,23 @@ function OrderDetails() {
                 <span className="font-medium text-[#0f699e]">{new Date(order.deadline).toLocaleDateString()}</span>
               </div>
             </div>
+
+            {/* Message counterpart */}
+            {isParticipant && (
+              <Link
+                to={`/messages?with=${
+                  isBuyer ? order.seller_id : order.buyer_id
+                }&name=${encodeURIComponent(
+                  isBuyer ? order.seller_name : order.buyer_name
+                )}`}
+                className="brand-button-neutral mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+                Message {isBuyer ? order.seller_name : order.buyer_name}
+              </Link>
+            )}
           </div>
 
           {review && (
