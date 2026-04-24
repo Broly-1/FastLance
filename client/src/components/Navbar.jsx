@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -16,29 +16,29 @@ export default function Navbar() {
   const effectiveRole = user?.role === 'Both' ? activeMode : user?.role;
 
   return (
-    <nav className="bg-white shadow">
+    <nav className="brand-topbar sticky top-0 z-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <h1 className="text-2xl font-extrabold text-blue-600">
+            <h1 className="brand-logo-text text-2xl font-extrabold tracking-tight">
               <Link to="/">Fastlance</Link>
             </h1>
             <div className="hidden md:ml-6 md:flex md:space-x-8">
               {/* Dynamic Links Based on Role */}
               {user && effectiveRole === 'Buyer' && (
                 <>
-                  <Link to="/buyer" className="text-gray-900 border-transparent hover:border-blue-500 hover:text-blue-500 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Explore Gigs</Link>
-                  <Link to="/buyer/orders" className="text-gray-900 border-transparent hover:border-blue-500 hover:text-blue-500 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">My Orders</Link>
+                  <Link to="/buyer" className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700">Explore Gigs</Link>
+                  <Link to="/buyer/orders" className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700">My Orders</Link>
                 </>
               )}
               {user && effectiveRole === 'Seller' && (
                 <>
-                  <Link to="/seller" className="text-gray-900 border-transparent hover:border-blue-500 hover:text-blue-500 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">My Dashboard</Link>
-                  <Link to="/seller/orders" className="text-gray-900 border-transparent hover:border-blue-500 hover:text-blue-500 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Manage Orders</Link>
+                  <Link to="/seller" className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700">My Dashboard</Link>
+                  <Link to="/seller/orders" className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700">Manage Orders</Link>
                 </>
               )}
               {user && user.role === 'Admin' && (
-                <Link to="/admin" className="text-gray-900 border-transparent hover:border-blue-500 hover:text-blue-500 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Administration</Link>
+                <Link to="/admin" className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700">Administration</Link>
               )}
             </div>
           </div>
@@ -54,23 +54,23 @@ export default function Navbar() {
                       if (newMode === 'Seller') navigate('/seller');
                       else navigate('/buyer');
                     }}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-800"
+                    className="brand-link text-sm font-medium transition"
                   >
                     Switch to {activeMode === 'Buyer' ? 'Selling' : 'Buying'}
                   </button>
                 )}
-                <span className="text-sm text-gray-500 hidden sm:block">Logged in as {user.username} ({user.role})</span>
+                <span className="hidden text-sm text-slate-500 sm:block">Logged in as {user.username} ({user.role})</span>
                 <button 
                   onClick={handleLogout}
-                  className="bg-gray-800 text-white px-4 py-2 rounded-md hover:bg-gray-900 transition text-sm font-medium"
+                  className="brand-button-neutral rounded-xl px-4 py-2 text-sm font-medium transition"
                 >
                   Logout
                 </button>
               </div>
             ) : (
               <div className="space-x-4 flex">
-                <Link to="/login" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">Sign in</Link>
-                <Link to="/register" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition text-sm font-medium">Sign up</Link>
+                <Link to="/login" className="px-3 py-2 text-sm font-medium text-slate-600 transition hover:text-sky-700">Sign in</Link>
+                <Link to="/register" className="brand-button-primary rounded-xl px-4 py-2 text-sm font-medium transition">Sign up</Link>
               </div>
             )}
           </div>

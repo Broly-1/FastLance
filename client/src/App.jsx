@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './context/useAuth';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
@@ -11,6 +12,7 @@ import SellerDashboard from './pages/SellerDashboard';
 import GigDetails from './pages/GigDetails';
 import BuyerOrders from './pages/BuyerOrders';
 import SellerOrders from './pages/SellerOrders';
+import OrderDetails from './pages/OrderDetails';
 
 // A tiny helper component to route users to the right landing page if they hit "/"
 function HomeRedirect() {
@@ -25,7 +27,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="flex flex-col min-h-screen bg-gray-50">
+        <div className="brand-shell flex flex-col min-h-screen">
           <Navbar />
           <main className="flex-grow flex flex-col">
             <Routes>
@@ -60,6 +62,14 @@ function App() {
                     <BuyerOrders />
                   </ProtectedRoute>
                 } 
+              />
+              <Route
+                path="/orders/:orderId"
+                element={
+                  <ProtectedRoute allowedRoles={['Buyer', 'Seller', 'Both']}>
+                    <OrderDetails />
+                  </ProtectedRoute>
+                }
               />
               <Route 
                 path="/seller/*" 

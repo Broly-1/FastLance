@@ -9,6 +9,11 @@
 -- USE freelance_db;
 -- GO
 
+-- Existing local database upgrade note:
+-- If Order_Submissions already exists from an earlier version,
+-- run this once before testing revision requests:
+-- ALTER TABLE Order_Submissions ALTER COLUMN file_url NVARCHAR(255) NULL;
+
 -- ================================================================
 -- TABLES
 -- ================================================================
@@ -102,7 +107,7 @@ CREATE TABLE Order_Submissions (
     submission_id INT PRIMARY KEY IDENTITY(1,1),
     order_id      INT NOT NULL,
     submitted_by  INT NOT NULL,
-    file_url      NVARCHAR(255) NOT NULL,
+    file_url      NVARCHAR(255) NULL,
     message       NVARCHAR(MAX),
     is_revision   BIT       DEFAULT 0,
     submitted_at  DATETIME2 DEFAULT GETDATE(),

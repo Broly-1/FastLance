@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { useNavigate } from 'react-router-dom';
 
 export default function SellerDashboard() {
@@ -80,13 +80,14 @@ export default function SellerDashboard() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
       <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Seller Dashboard</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage your active services and listings.</p>
+        <div className="brand-hero flex-1 px-6 py-7 sm:px-8">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#0f699e]">Creator workspace</p>
+          <h1 className="brand-page-title text-3xl font-bold">Seller Dashboard</h1>
+          <p className="brand-page-subtitle mt-1 text-sm">Manage your active services and listings.</p>
         </div>
         <button 
           onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition font-medium shadow-sm"
+          className="brand-button-primary ml-4 rounded-xl px-4 py-2.5 font-medium transition shadow-sm"
         >
           {showForm ? 'Cancel' : '+ Create New Gig'}
         </button>
@@ -94,21 +95,21 @@ export default function SellerDashboard() {
 
       {/* Create Gig Form */}
       {showForm && (
-        <div className="bg-white p-6 rounded-lg shadow-md mb-8 border border-gray-200">
-          <h2 className="text-xl font-semibold mb-4 text-gray-800">Create a New Service (Gig)</h2>
+        <div className="brand-surface mb-8 p-6">
+          <h2 className="mb-4 text-xl font-semibold text-slate-800">Create a New Service (Gig)</h2>
           <form onSubmit={handleCreateGig} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Gig Title</label>
-                <input required type="text" value={title} onChange={e=>setTitle(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500" placeholder="I will build a fullstack React application..." />
+                <label className="mb-1 block text-sm font-medium text-slate-700">Gig Title</label>
+                <input required type="text" value={title} onChange={e=>setTitle(e.target.value)} className="brand-input" placeholder="I will build a fullstack React application..." />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea required rows="3" value={description} onChange={e=>setDescription(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Describe what you will do..." />
+                <label className="mb-1 block text-sm font-medium text-slate-700">Description</label>
+                <textarea required rows="3" value={description} onChange={e=>setDescription(e.target.value)} className="brand-input" placeholder="Describe what you will do..." />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select value={category} onChange={e=>setCategory(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                <label className="mb-1 block text-sm font-medium text-slate-700">Category</label>
+                <select value={category} onChange={e=>setCategory(e.target.value)} className="brand-input">
                   <option value="Programming">Programming</option>
                   <option value="Graphics">Graphics & Design</option>
                   <option value="Writing">Writing & Translation</option>
@@ -117,20 +118,20 @@ export default function SellerDashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price ($)</label>
-                <input required type="number" min="5" step="0.01" value={price} onChange={e=>setPrice(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500" placeholder="50.00" />
+                <label className="mb-1 block text-sm font-medium text-slate-700">Price ($)</label>
+                <input required type="number" min="5" step="0.01" value={price} onChange={e=>setPrice(e.target.value)} className="brand-input" placeholder="50.00" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Time (Days)</label>
-                <input required type="number" min="1" value={deliveryDays} onChange={e=>setDeliveryDays(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500" placeholder="3" />
+                <label className="mb-1 block text-sm font-medium text-slate-700">Delivery Time (Days)</label>
+                <input required type="number" min="1" value={deliveryDays} onChange={e=>setDeliveryDays(e.target.value)} className="brand-input" placeholder="3" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Revision Limit</label>
-                <input required type="number" min="0" value={revisionLimit} onChange={e=>setRevisionLimit(e.target.value)} className="w-full border border-gray-300 rounded px-3 py-2 focus:ring-blue-500 focus:border-blue-500" placeholder="1" />
+                <label className="mb-1 block text-sm font-medium text-slate-700">Revision Limit</label>
+                <input required type="number" min="0" value={revisionLimit} onChange={e=>setRevisionLimit(e.target.value)} className="brand-input" placeholder="1" />
               </div>
             </div>
             <div className="pt-4 flex justify-end">
-              <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded-md hover:bg-green-700 transition font-medium shadow-sm">
+              <button type="submit" className="brand-button-primary rounded-xl px-6 py-2.5 font-medium transition shadow-sm">
                 Publish Gig
               </button>
             </div>
@@ -140,31 +141,31 @@ export default function SellerDashboard() {
 
       {/* Gigs List */}
       <div>
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">Your Active Gigs</h2>
+        <h2 className="mb-4 text-xl font-semibold text-slate-800">Your Active Gigs</h2>
         {loading ? (
-          <p className="text-gray-500">Loading your gigs...</p>
+          <p className="text-slate-500">Loading your gigs...</p>
         ) : error ? (
           <p className="text-red-500">Error: {error}</p>
         ) : gigs.length === 0 ? (
-          <div className="bg-white p-8 text-center rounded-lg border border-gray-200">
-            <p className="text-gray-500">You haven't created any gigs yet.</p>
+          <div className="brand-surface p-8 text-center">
+            <p className="text-slate-500">You haven't created any gigs yet.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {gigs.map(gig => (
-              <div key={gig.gig_id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col cursor-pointer hover:shadow-md transition" onClick={() => navigate(`/gigs/${gig.gig_id}`)}>
+              <div key={gig.gig_id} className="brand-surface flex cursor-pointer flex-col overflow-hidden transition hover:shadow-md" onClick={() => navigate(`/gigs/${gig.gig_id}`)}>
                 <img src={gig.thumbnail_url || 'https://via.placeholder.com/400x300?text=No+Image'} alt={gig.title} className="w-full h-48 object-cover" />
                 <div className="p-4 flex-grow flex flex-col">
                   <div className="flex justify-between items-start mb-2">
-                    <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">{gig.category}</span>
+                    <span className="brand-chip rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide">{gig.category}</span>
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${gig.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                       {gig.is_active ? 'Active' : 'Paused'}
                     </span>
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-1 line-clamp-2">{gig.title}</h3>
+                  <h3 className="mb-1 line-clamp-2 text-xl font-bold text-slate-900">{gig.title}</h3>
                   <div className="mt-auto pt-4 flex items-center justify-between">
-                    <span className="text-sm text-gray-500">Delivery: {gig.delivery_days} days</span>
-                    <span className="text-xl font-extrabold text-gray-900">${gig.price}</span>
+                    <span className="text-sm text-slate-500">Delivery: {gig.delivery_days} days</span>
+                    <span className="text-xl font-extrabold text-slate-900">${gig.price}</span>
                   </div>
                 </div>
               </div>

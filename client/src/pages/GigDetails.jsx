@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
 export default function GigDetails() {
   const { id } = useParams();
@@ -49,8 +49,6 @@ export default function GigDetails() {
         body: JSON.stringify({
           gig_id: gig.gig_id,
           buyer_id: user.id,
-          seller_id: gig.seller_id,
-          total_price: gig.price
         })
       });
 
@@ -61,8 +59,12 @@ export default function GigDetails() {
       }
 
       alert("Order placed successfully!");
-      // Redirect to a placeholder order tracking page
-      navigate(`/buyer/orders/${data.order_id || 'recent'}`);
+      if (data.order_id) {
+        navigate(`/orders/${data.order_id}`);
+        return;
+      }
+
+      navigate('/buyer/orders');
       
     } catch (err) {
       alert(err.message);
@@ -72,49 +74,49 @@ export default function GigDetails() {
   };
 
   if (loading) return (
-    <div className="flex justify-center items-center h-screen bg-gray-50">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    <div className="flex h-screen items-center justify-center">
+      <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-[#2da8ed]"></div>
     </div>
   );
 
   if (error || !gig) return (
-    <div className="text-center py-20 bg-gray-50 h-screen">
+    <div className="h-screen py-20 text-center">
       <p className="text-2xl text-red-500 font-bold mb-4">{error || "Gig not found"}</p>
-      <button onClick={() => navigate(-1)} className="text-blue-600 hover:underline">Go Back</button>
+      <button onClick={() => navigate(-1)} className="brand-link hover:underline">Go Back</button>
     </div>
   );
 
   return (
-    <div className="bg-gray-50 min-h-screen py-10">
+    <div className="min-h-screen py-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Breadcrumb */}
-        <nav className="text-sm text-gray-500 mb-6">
-           <button onClick={() => navigate(-1)} className="hover:text-blue-600">Explore</button> &gt; 
-           <span className="ml-2 text-gray-900">{gig.category}</span>
+        <nav className="mb-6 text-sm text-slate-500">
+           <button onClick={() => navigate(-1)} className="brand-link">Explore</button> &gt; 
+           <span className="ml-2 text-slate-900">{gig.category}</span>
         </nav>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Main Gig Column */}
           <div className="lg:col-span-2 space-y-8">
-            <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 leading-tight">
+            <h1 className="brand-page-title text-3xl font-extrabold leading-tight sm:text-4xl">
               {gig.title}
             </h1>
             
             {/* Seller Quick Info */}
             <div className="flex items-center space-x-3">
-               <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-800 font-bold text-xl">
+               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#def4ff] text-xl font-bold text-sky-700">
                  {gig.seller_name?.charAt(0).toUpperCase()}
                </div>
                <div>
-                 <p className="text-lg font-medium text-gray-900">{gig.seller_name}</p>
-                 <p className="text-sm text-gray-500">Top Rated Seller</p>
+                 <p className="text-lg font-medium text-slate-900">{gig.seller_name}</p>
+                 <p className="text-sm text-slate-500">Top Rated Seller</p>
                </div>
             </div>
 
             {/* Main Image */}
-            <div className="rounded-xl overflow-hidden shadow-sm bg-white">
+            <div className="brand-surface overflow-hidden">
               <img 
                 src={gig.thumbnail_url || 'https://via.placeholder.com/800x500?text=Gig+Preview'} 
                 alt={gig.title} 
@@ -123,9 +125,9 @@ export default function GigDetails() {
             </div>
 
             {/* About This Gig */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">About This Gig</h2>
-              <div className="prose prose-blue max-w-none text-gray-700 whitespace-pre-line">
+            <div className="brand-surface p-6">
+              <h2 className="mb-4 text-2xl font-bold text-slate-900">About This Gig</h2>
+              <div className="max-w-none whitespace-pre-line text-slate-700">
                 {gig.description}
               </div>
             </div>
@@ -134,21 +136,21 @@ export default function GigDetails() {
 
           {/* Right Sidebar Checkout */}
           <div className="lg:col-span-1">
-            <div className="sticky top-6 bg-white p-6 rounded-xl shadow-md border border-gray-200">
+            <div className="brand-surface sticky top-24 p-6">
               <div className="flex justify-between items-start mb-6">
-                <h3 className="text-xl font-bold text-gray-900">Standard Package</h3>
-                <span className="text-3xl font-extrabold text-gray-900">${gig.price}</span>
+                <h3 className="text-xl font-bold text-slate-900">Standard Package</h3>
+                <span className="text-3xl font-extrabold text-slate-900">${gig.price}</span>
               </div>
               
-              <div className="flex justify-between text-gray-600 mb-6 text-sm font-medium">
+              <div className="mb-6 flex justify-between text-sm font-medium text-slate-600">
                 <div className="flex items-center">
-                  <svg className="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="mr-2 h-5 w-5 text-[#f4be18]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   {gig.delivery_days} Days Delivery
                 </div>
                 <div className="flex items-center">
-                  <svg className="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="mr-2 h-5 w-5 text-[#2da8ed]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
                   {gig.revision_limit} Revisions
@@ -159,23 +161,23 @@ export default function GigDetails() {
                 <button 
                   onClick={handlePlaceOrder}
                   disabled={orderProcessing || user.id === gig.seller_id}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  className="brand-button-primary w-full rounded-xl px-4 py-3 font-bold transition duration-200 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {orderProcessing ? 'Processing...' : 'Continue to Checkout'}
                 </button>
               ) : (
-                <div className="text-center p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
+                <div className="rounded-xl bg-[#f8fcff] p-4 text-center text-sm text-slate-600">
                   {user?.role === 'Admin' ? 'Admins cannot place orders.' : 'Log in as a Buyer to place an order.'}
                 </div>
               )}
               
-              <div className="mt-6 border-t border-gray-100 pt-6">
-                <p className="text-sm font-medium text-gray-900 mb-2">Category & Tags</p>
-                <span className="inline-block bg-blue-50 text-blue-700 text-xs px-3 py-1 rounded-full font-semibold border border-blue-100 mb-2 mr-2">
+              <div className="mt-6 border-t border-[#edf5fb] pt-6">
+                <p className="mb-2 text-sm font-medium text-slate-900">Category & Tags</p>
+                <span className="brand-chip mb-2 mr-2 inline-block rounded-full px-3 py-1 text-xs font-semibold">
                   {gig.category}
                 </span>
                 {gig.tags && gig.tags.map(tag => (
-                   <span key={tag.tag_id} className="inline-block bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full font-medium border border-gray-200 mb-2 mr-2">
+                   <span key={tag.tag_id} className="mb-2 mr-2 inline-block rounded-full border border-[#f0db82] bg-[#fff8d9] px-3 py-1 text-xs font-medium text-[#936600]">
                      {tag.name}
                    </span>
                 ))}

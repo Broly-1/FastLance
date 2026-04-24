@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -50,26 +50,29 @@ export default function Login() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 px-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-lg">
+    <div className="brand-auth-shell flex min-h-screen items-center justify-center px-4">
+      <div className="brand-auth-card w-full max-w-md p-8">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-extrabold text-blue-600">Fastlance</h1>
-          <p className="mt-2 text-sm text-gray-500">Sign in to your account</p>
+          <p className="mb-3 inline-flex rounded-full border border-[#f0db82] bg-[#fff8d9] px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[#936600]">
+            Fast Uni palette
+          </p>
+          <h1 className="brand-logo-text text-4xl font-extrabold">Fastlance</h1>
+          <p className="brand-page-subtitle mt-2 text-sm">Sign in to your account</p>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-md bg-red-100 p-3 text-sm text-red-700">
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             {error}
           </div>
         )}
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Email Address</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Email Address</label>
             <input 
               type="email"
               required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="brand-input"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -77,11 +80,11 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Password</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
             <input 
               type="password"
               required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="brand-input"
               placeholder="********"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -90,16 +93,16 @@ export default function Login() {
 
           <button 
             type="submit"
-            className="flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="brand-button-primary flex w-full justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition"
           >
             Sign in
           </button>
         </form>
 
         <div className="mt-6 text-center text-sm">
-          <p className="text-gray-600">
+          <p className="text-slate-600">
             Don't have an account?{' '}
-            <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link to="/register" className="brand-link font-medium transition">
               Sign up
             </Link>
           </p>

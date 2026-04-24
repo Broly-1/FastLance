@@ -46,13 +46,14 @@ export default function BuyerDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Explore Services</h1>
-        <p className="mt-1 text-sm text-gray-500">Find the perfect freelance services for your business.</p>
+      <div className="brand-hero mb-8 px-6 py-8 sm:px-8">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#936600]">Fast Uni inspired</p>
+        <h1 className="brand-page-title text-3xl font-bold">Explore Services</h1>
+        <p className="brand-page-subtitle mt-1 text-sm">Find the perfect freelance services for your business.</p>
       </div>
 
       {/* Filters & Search */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-8 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+      <div className="brand-surface mb-8 flex flex-col gap-4 p-4 sm:flex-row">
         <div className="flex-grow">
           <input 
             type="text" 
@@ -62,7 +63,7 @@ export default function BuyerDashboard() {
               setSearchTerm(e.target.value);
               if (e.target.value) setCategory(''); // Clear category when searching via text
             }}
-            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-blue-500 focus:border-blue-500"
+            className="brand-input"
           />
         </div>
         <div className="sm:w-64">
@@ -72,7 +73,7 @@ export default function BuyerDashboard() {
               setCategory(e.target.value);
               if (e.target.value) setSearchTerm(''); // Clear search when selecting category
             }}
-            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-blue-500 focus:border-blue-500"
+            className="brand-input"
           >
             <option value="">All Categories</option>
             <option value="Programming">Programming</option>
@@ -88,20 +89,20 @@ export default function BuyerDashboard() {
       <div>
         {loading ? (
           <div className="flex justify-center py-10">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-[#2da8ed]"></div>
           </div>
         ) : error ? (
-          <p className="text-red-500 bg-red-50 p-4 rounded text-center">Error: {error}</p>
+          <p className="rounded-2xl border border-red-200 bg-red-50 p-4 text-center text-red-500">Error: {error}</p>
         ) : gigs.length === 0 ? (
-          <div className="bg-white p-12 text-center rounded-lg border border-gray-200">
-            <p className="text-gray-500 text-lg">No services found matching your criteria.</p>
+          <div className="brand-surface p-12 text-center">
+            <p className="brand-page-subtitle text-lg">No services found matching your criteria.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {gigs.filter(gig => gig.is_active).map(gig => (
               <div 
                 key={gig.gig_id} 
-                className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col cursor-pointer group hover:shadow-xl transition-all duration-200 transform hover:-translate-y-1" 
+                className="brand-surface group flex cursor-pointer flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl" 
                 onClick={() => navigate(`/gigs/${gig.gig_id}`)}
               >
                 <img 
@@ -111,24 +112,24 @@ export default function BuyerDashboard() {
                 />
                 <div className="p-4 flex-grow flex flex-col">
                   <div className="flex justify-between items-start mb-2">
-                    <span className="text-xs font-semibold text-blue-600 uppercase tracking-wide">{gig.category}</span>
+                    <span className="brand-chip rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide">{gig.category}</span>
                   </div>
-                  <h3 className="text-base font-medium text-gray-900 mb-1 line-clamp-2 leading-snug group-hover:text-blue-600 transition">{gig.title}</h3>
+                  <h3 className="mb-1 line-clamp-2 text-base font-medium leading-snug text-slate-900 transition group-hover:text-sky-700">{gig.title}</h3>
                   <div className="mt-3 flex items-center">
-                    <div className="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                    <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-[#e6f7ff]">
                       {gig.seller_profile_pic ? (
                         <img src={gig.seller_profile_pic} alt={gig.seller_name} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-xs text-gray-500 font-bold">{gig.seller_name?.charAt(0).toUpperCase()}</span>
+                        <span className="text-xs font-bold text-sky-700">{gig.seller_name?.charAt(0).toUpperCase()}</span>
                       )}
                     </div>
-                    <span className="ml-2 text-sm text-gray-600">{gig.seller_name}</span>
+                    <span className="ml-2 text-sm text-slate-600">{gig.seller_name}</span>
                   </div>
-                  <div className="mt-auto pt-4 flex items-center justify-between border-t border-gray-100">
-                    <span className="text-sm text-gray-500">{gig.delivery_days} days</span>
+                  <div className="mt-auto flex items-center justify-between border-t border-[#edf5fb] pt-4">
+                    <span className="text-sm text-slate-500">{gig.delivery_days} days</span>
                     <div className="flex flex-col items-end">
-                      <span className="text-xs text-gray-400 uppercase tracking-wider">Starting at</span>
-                      <span className="text-lg font-bold text-gray-900">${gig.price}</span>
+                      <span className="text-xs uppercase tracking-wider text-[#b38a00]">Starting at</span>
+                      <span className="text-lg font-bold text-slate-900">${gig.price}</span>
                     </div>
                   </div>
                 </div>

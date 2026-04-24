@@ -93,6 +93,12 @@ CREATE DATABASE freelance_db;
 4. Make sure the target database is `freelance_db` (it starts with `USE freelance_db;`)
 5. Press **F5** to execute — all tables, indexes, and views will be created
 
+If your database already exists from an older copy of this project, run this one-off upgrade before testing buyer revision requests:
+
+```sql
+ALTER TABLE Order_Submissions ALTER COLUMN file_url NVARCHAR(255) NULL;
+```
+
 ---
 
 ## Step 5 — Configure the `.env` file

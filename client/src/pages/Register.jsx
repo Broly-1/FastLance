@@ -32,26 +32,29 @@ export default function Register() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 px-4">
-      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-lg">
+    <div className="brand-auth-shell flex min-h-screen items-center justify-center px-4">
+      <div className="brand-auth-card w-full max-w-md p-8">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-extrabold text-blue-600">Fastlance</h1>
-          <p className="mt-2 text-sm text-gray-500">Create a new account</p>
+          <p className="mb-3 inline-flex rounded-full border border-[#c8ecff] bg-[#eef9ff] px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[#0f699e]">
+            Light blue + yellow
+          </p>
+          <h1 className="brand-logo-text text-4xl font-extrabold">Fastlance</h1>
+          <p className="brand-page-subtitle mt-2 text-sm">Create a new account</p>
         </div>
 
         {error && (
-          <div className="mb-4 rounded-md bg-red-100 p-3 text-sm text-red-700">
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             {error}
           </div>
         )}
 
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Username</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Username</label>
             <input 
               type="text"
               required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="brand-input"
               placeholder="johndoe123"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -59,11 +62,11 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Email Address</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Email Address</label>
             <input 
               type="email"
               required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="brand-input"
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -71,11 +74,11 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Password</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Password</label>
             <input 
               type="password"
               required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="brand-input"
               placeholder="********"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -83,11 +86,11 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">I want to...</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">I want to...</label>
             <select 
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="brand-input"
             >
               <option value="Buyer">Hire Freelancers (Buyer)</option>
               <option value="Seller">Offer my Services (Seller)</option>
@@ -97,16 +100,16 @@ export default function Register() {
 
           <button 
             type="submit"
-            className="mt-6 flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            className="brand-button-primary mt-6 flex w-full justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition"
           >
             Create Account
           </button>
         </form>
 
         <div className="mt-6 text-center text-sm">
-          <p className="text-gray-600">
+          <p className="text-slate-600">
             Already have an account?{' '}
-            <Link to="/login" className="font-medium text-blue-600 hover:text-blue-500">
+            <Link to="/login" className="brand-link font-medium transition">
               Sign in
             </Link>
           </p>
