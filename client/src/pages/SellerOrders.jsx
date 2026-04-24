@@ -65,7 +65,7 @@ export default function SellerOrders() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="brand-hero mb-8 px-6 py-7 sm:px-8">
         <h1 className="brand-page-title text-3xl font-extrabold">Manage Orders</h1>
-        <p className="brand-page-subtitle mt-1 text-sm">Keep delivery work inside the same light-blue and yellow system.</p>
+        <p className="brand-page-subtitle mt-1 text-sm">Track progress, deliveries, and next actions.</p>
       </div>
 
       {actionError && (

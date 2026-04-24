@@ -4,6 +4,28 @@ import { useAuth } from '../context/useAuth';
 
 const API_BASE_URL = 'http://localhost:3000';
 
+function StarRating({ rating, size = 'small' }) {
+  const iconClass = size === 'large' ? 'h-5 w-5' : 'h-4 w-4';
+
+  return (
+    <div className="flex items-center gap-1 text-[#f4be18]">
+      {[1, 2, 3, 4, 5].map((value) => (
+        <svg
+          key={value}
+          className={iconClass}
+          viewBox="0 0 20 20"
+          fill={value <= rating ? 'currentColor' : 'none'}
+          stroke="currentColor"
+          strokeWidth="1.5"
+          aria-hidden="true"
+        >
+          <path d="M10 2.5l2.32 4.7 5.18.75-3.75 3.66.88 5.16L10 14.4 5.37 16.77l.88-5.16L2.5 7.95l5.18-.75L10 2.5z" />
+        </svg>
+      ))}
+    </div>
+  );
+}
+
 function getStatusClasses(status) {
   if (status === 'Pending') return 'brand-status brand-status-pending';
   if (status === 'In Progress') return 'brand-status brand-status-progress';
@@ -29,10 +51,21 @@ async function readJsonResponse(response, fallbackMessage) {
   return data;
 }
 
+async function fetchOptionalReviewByOrder(orderId) {
+  const response = await fetch(`${API_BASE_URL}/api/reviews/order/${orderId}`);
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  return readJsonResponse(response, 'Failed to load review');
+}
+
 async function fetchOrderPageData(orderId) {
-  const [orderResponse, submissionsResponse] = await Promise.all([
+  const [orderResponse, submissionsResponse, review] = await Promise.all([
     fetch(`${API_BASE_URL}/api/orders/${orderId}`),
     fetch(`${API_BASE_URL}/api/submissions/order/${orderId}`),
+    fetchOptionalReviewByOrder(orderId),
   ]);
 
   const orderData = await readJsonResponse(orderResponse, 'Order not found');
@@ -44,6 +77,7 @@ async function fetchOrderPageData(orderId) {
   return {
     order: orderData,
     submissions: Array.isArray(submissionsData) ? submissionsData : [],
+    review,
   };
 }
 
@@ -54,6 +88,7 @@ function OrderDetails() {
 
   const [order, setOrder] = useState(null);
   const [submissions, setSubmissions] = useState([]);
+  const [review, setReview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -65,9 +100,23 @@ function OrderDetails() {
   const [revisionMessage, setRevisionMessage] = useState('');
   const [revisionSubmitting, setRevisionSubmitting] = useState(false);
 
+  const [reviewRating, setReviewRating] = useState('5');
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+
+  const [sellerReplyDraft, setSellerReplyDraft] = useState('');
+  const [replySubmitting, setReplySubmitting] = useState(false);
+
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [actionError, setActionError] = useState(null);
   const [actionSuccess, setActionSuccess] = useState(null);
+
+  const applyPageData = (data) => {
+    setOrder(data.order);
+    setSubmissions(data.submissions);
+    setReview(data.review);
+    setSellerReplyDraft(data.review?.seller_reply || '');
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -82,8 +131,7 @@ function OrderDetails() {
           return;
         }
 
-        setOrder(data.order);
-        setSubmissions(data.submissions);
+        applyPageData(data);
       } catch (err) {
         if (!cancelled) {
           setError(err.message);
@@ -104,8 +152,7 @@ function OrderDetails() {
 
   const refreshOrderPage = async () => {
     const data = await fetchOrderPageData(orderId);
-    setOrder(data.order);
-    setSubmissions(data.submissions);
+    applyPageData(data);
   };
 
   const resetFeedback = () => {
@@ -222,6 +269,71 @@ function OrderDetails() {
     }
   };
 
+  const handleReviewSubmit = async (event) => {
+    event.preventDefault();
+
+    try {
+      setReviewSubmitting(true);
+      resetFeedback();
+
+      const response = await fetch(`${API_BASE_URL}/api/reviews`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: Number(orderId),
+          reviewer_id: user.id,
+          rating: Number(reviewRating),
+          comment: reviewComment.trim() || null,
+        }),
+      });
+
+      await readJsonResponse(response, 'Failed to submit review');
+
+      setReviewRating('5');
+      setReviewComment('');
+      await refreshOrderPage();
+      setActionSuccess('Your review has been published.');
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
+  const handleSellerReplySubmit = async (event) => {
+    event.preventDefault();
+
+    const trimmedReply = sellerReplyDraft.trim();
+    if (!trimmedReply || !review) {
+      setActionError('Please add a reply before saving.');
+      setActionSuccess(null);
+      return;
+    }
+
+    try {
+      setReplySubmitting(true);
+      resetFeedback();
+
+      const response = await fetch(`${API_BASE_URL}/api/reviews/${review.review_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          seller_id: user.id,
+          seller_reply: trimmedReply,
+        }),
+      });
+
+      await readJsonResponse(response, 'Failed to save seller reply');
+
+      await refreshOrderPage();
+      setActionSuccess(review.seller_reply ? 'Seller reply updated.' : 'Seller reply published.');
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setReplySubmitting(false);
+    }
+  };
+
   if (loading) {
     return <div className="p-8 text-center text-slate-500">Loading order details...</div>;
   }
@@ -283,16 +395,14 @@ function OrderDetails() {
             Gig: <span className="font-medium text-slate-800">{order.gig_title}</span>
           </p>
         </div>
-        <div className="mt-4 sm:mt-0 flex flex-col items-start sm:items-end">
-          <span className={getStatusClasses(order.status)}>
-            {order.status}
-          </span>
+        <div className="mt-4 flex flex-col items-start sm:mt-0 sm:items-end">
+          <span className={getStatusClasses(order.status)}>{order.status}</span>
           <span className="mt-2 text-sm font-bold text-slate-700">${Number(order.total_price).toFixed(2)}</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+        <div className="space-y-6 md:col-span-2">
           <h2 className="text-xl font-bold text-slate-900">Timeline & Submissions</h2>
 
           {submissions.length === 0 ? (
@@ -311,7 +421,7 @@ function OrderDetails() {
                       isBuyerRevision ? 'border-[#f0db82] bg-[#fff8d9]' : 'brand-surface'
                     }`}
                   >
-                    <div className="flex justify-between items-start gap-4 mb-2">
+                    <div className="mb-2 flex items-start justify-between gap-4">
                       <div>
                         <span className="font-semibold text-slate-900">{submission.submitted_by_name}</span>
                         {isBuyerRevision && (
@@ -389,6 +499,117 @@ function OrderDetails() {
               </div>
             </div>
           </div>
+
+          {review && (
+            <div className="brand-surface p-5">
+              <h3 className="mb-3 font-bold text-slate-900">Buyer Review</h3>
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-semibold text-slate-900">{review.reviewer_name}</p>
+                  <p className="text-xs text-slate-500">
+                    {new Date(review.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <StarRating rating={review.rating} size="small" />
+                  <p className="mt-1 text-xs font-semibold text-[#0f699e]">{review.rating}/5</p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[#e5eef5] bg-[#fbfdff] p-4">
+                <p className="text-sm leading-6 text-slate-700">
+                  {review.comment || 'No written comment was added with this review.'}
+                </p>
+              </div>
+
+              {review.seller_reply && (
+                <div className="mt-4 rounded-xl border border-[#f0db82] bg-[#fff8d9] p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#936600]">
+                    Seller Reply
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-700">{review.seller_reply}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {isBuyer && order.status === 'Completed' && !review && (
+            <div className="brand-surface p-5">
+              <h3 className="mb-3 font-bold text-slate-900">Leave a Review</h3>
+              <p className="mb-4 text-sm text-slate-600">
+                Share your experience with the seller now that the order is complete.
+              </p>
+              <form onSubmit={handleReviewSubmit} className="space-y-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Rating</label>
+                  <select
+                    value={reviewRating}
+                    onChange={(event) => setReviewRating(event.target.value)}
+                    className="brand-input"
+                  >
+                    <option value="5">5 - Excellent</option>
+                    <option value="4">4 - Very Good</option>
+                    <option value="3">3 - Good</option>
+                    <option value="2">2 - Fair</option>
+                    <option value="1">1 - Poor</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Comment</label>
+                  <textarea
+                    rows="4"
+                    value={reviewComment}
+                    onChange={(event) => setReviewComment(event.target.value)}
+                    className="brand-input"
+                    placeholder="Tell future buyers what went well..."
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={reviewSubmitting}
+                  className="brand-button-primary w-full rounded-md px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {reviewSubmitting ? 'Publishing Review...' : 'Publish Review'}
+                </button>
+              </form>
+            </div>
+          )}
+
+          {isSeller && order.status === 'Completed' && !review && (
+            <div className="brand-surface p-5">
+              <h3 className="mb-2 font-bold text-slate-900">Waiting for Buyer Review</h3>
+              <p className="text-sm text-slate-600">
+                Once the buyer leaves feedback, you will be able to add a public seller reply here.
+              </p>
+            </div>
+          )}
+
+          {isSeller && review && (
+            <div className="brand-surface p-5">
+              <h3 className="mb-3 font-bold text-slate-900">
+                {review.seller_reply ? 'Edit Seller Reply' : 'Add Seller Reply'}
+              </h3>
+              <form onSubmit={handleSellerReplySubmit} className="space-y-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Public Reply</label>
+                  <textarea
+                    rows="4"
+                    value={sellerReplyDraft}
+                    onChange={(event) => setSellerReplyDraft(event.target.value)}
+                    className="brand-input"
+                    placeholder="Thank the buyer and respond publicly to the review..."
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={replySubmitting}
+                  className="brand-button-primary w-full rounded-md px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {replySubmitting ? 'Saving Reply...' : review.seller_reply ? 'Update Reply' : 'Publish Reply'}
+                </button>
+              </form>
+            </div>
+          )}
 
           {isSeller && ['Pending', 'In Progress'].includes(order.status) && (
             <div className="brand-surface p-5">
@@ -530,8 +751,8 @@ function OrderDetails() {
           )}
 
           {order.status === 'Cancelled' && (
-            <div className="bg-red-50 p-5 rounded-lg shadow-sm border border-red-100 text-center">
-              <h3 className="font-bold text-red-900 mb-1">Order Cancelled</h3>
+            <div className="rounded-lg border border-red-100 bg-red-50 p-5 text-center shadow-sm">
+              <h3 className="mb-1 font-bold text-red-900">Order Cancelled</h3>
               <p className="text-sm text-red-800">This order is no longer active.</p>
             </div>
           )}

@@ -40,7 +40,7 @@ export default function BuyerOrders() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       <div className="brand-hero mb-8 px-6 py-7 sm:px-8">
         <h1 className="brand-page-title text-3xl font-extrabold">My Purchases</h1>
-        <p className="brand-page-subtitle mt-1 text-sm">Track every order in the Fast Uni light-blue and yellow theme.</p>
+        <p className="brand-page-subtitle mt-1 text-sm">Track every order in one place.</p>
       </div>
       
       {orders.length === 0 ? (
@@ -59,6 +59,7 @@ export default function BuyerOrders() {
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Total Price</th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Date Placed</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#e8f1f7] bg-white/80">
@@ -87,6 +88,14 @@ export default function BuyerOrders() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                     {new Date(order.created_at || order.order_date).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <Link
+                      to={`/orders/${order.order_id}`}
+                      className="brand-button-neutral inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold transition"
+                    >
+                      View Details
+                    </Link>
                   </td>
                 </tr>
               ))}

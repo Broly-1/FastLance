@@ -35,9 +35,6 @@ export default function Register() {
     <div className="brand-auth-shell flex min-h-screen items-center justify-center px-4">
       <div className="brand-auth-card w-full max-w-md p-8">
         <div className="mb-8 text-center">
-          <p className="mb-3 inline-flex rounded-full border border-[#c8ecff] bg-[#eef9ff] px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[#0f699e]">
-            Light blue + yellow
-          </p>
           <h1 className="brand-logo-text text-4xl font-extrabold">Fastlance</h1>
           <p className="brand-page-subtitle mt-2 text-sm">Create a new account</p>
         </div>

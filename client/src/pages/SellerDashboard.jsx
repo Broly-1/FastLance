@@ -81,7 +81,6 @@ export default function SellerDashboard() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
       <div className="flex justify-between items-center mb-8">
         <div className="brand-hero flex-1 px-6 py-7 sm:px-8">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#0f699e]">Creator workspace</p>
           <h1 className="brand-page-title text-3xl font-bold">Seller Dashboard</h1>
           <p className="brand-page-subtitle mt-1 text-sm">Manage your active services and listings.</p>
         </div>

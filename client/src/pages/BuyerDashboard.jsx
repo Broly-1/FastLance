@@ -47,7 +47,6 @@ export default function BuyerDashboard() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
       <div className="brand-hero mb-8 px-6 py-8 sm:px-8">
-        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#936600]">Fast Uni inspired</p>
         <h1 className="brand-page-title text-3xl font-bold">Explore Services</h1>
         <p className="brand-page-subtitle mt-1 text-sm">Find the perfect freelance services for your business.</p>
       </div>
