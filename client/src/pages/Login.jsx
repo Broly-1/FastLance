@@ -53,9 +53,6 @@ export default function Login() {
     <div className="brand-auth-shell flex min-h-screen items-center justify-center px-4">
       <div className="brand-auth-card w-full max-w-md p-8">
         <div className="mb-8 text-center">
-          <p className="mb-3 inline-flex rounded-full border border-[#f0db82] bg-[#fff8d9] px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[#936600]">
-            Fast Uni palette
-          </p>
           <h1 className="brand-logo-text text-4xl font-extrabold">Fastlance</h1>
           <p className="brand-page-subtitle mt-2 text-sm">Sign in to your account</p>
         </div>
