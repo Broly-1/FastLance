@@ -6,15 +6,14 @@ exports.topSellers = async (req, res) => {
     const [rows] = await pool.query(
       `SELECT TOP 5 u.user_id, u.username, u.profile_pic_url,
               COUNT(DISTINCT o.order_id) AS total_orders,
-              ROUND(AVG(CAST(r.rating AS FLOAT)), 2) AS avg_rating,
+              COALESCE(ROUND(AVG(CAST(r.rating AS FLOAT)), 2), 0) AS avg_rating,
               COUNT(r.review_id) AS total_reviews
        FROM Users u
        JOIN Orders o ON u.user_id = o.seller_id
-       JOIN Reviews r ON r.order_id = o.order_id
+       LEFT JOIN Reviews r ON r.order_id = o.order_id
        WHERE o.status = 'Completed'
        GROUP BY u.user_id, u.username, u.profile_pic_url
-       HAVING COUNT(r.review_id) >= 1
-       ORDER BY avg_rating DESC, total_reviews DESC`
+       ORDER BY total_orders DESC, avg_rating DESC, total_reviews DESC`
     );
     res.json(rows);
   } catch (err) {

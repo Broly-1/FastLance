@@ -139,8 +139,10 @@ exports.updateStatus = async (req, res) => {
       return res.status(400).json({ error: 'Invalid order status' });
     }
 
+    // Fetch current order including financial/participant data
     const [rows] = await pool.query(
-      'SELECT order_id, status FROM Orders WHERE order_id = ?',
+      `SELECT o.order_id, o.status, o.total_price, o.buyer_id, o.seller_id
+       FROM Orders o WHERE o.order_id = ?`,
       [req.params.id]
     );
 
@@ -148,13 +150,60 @@ exports.updateStatus = async (req, res) => {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    const currentStatus = rows[0].status;
+    const order = rows[0];
+    const currentStatus = order.status;
+
     if (!isAllowedStatusTransition(currentStatus, status)) {
       return res.status(400).json({
         error: `Invalid status transition from ${currentStatus} to ${status}`,
       });
     }
 
+    // When completing an order, atomically update status and settle wallet balances
+    if (status === 'Completed' && currentStatus !== 'Completed') {
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+
+        // 1. Mark the order completed
+        await conn.query(
+          'UPDATE Orders SET status = ?, updated_at = GETDATE() WHERE order_id = ?',
+          [status, req.params.id]
+        );
+
+        const amount = Number(order.total_price);
+
+        // 2. Deduct from buyer (OrderPayment)
+        await conn.query(
+          'INSERT INTO Wallet_Transactions (user_id, order_id, amount, type, description) OUTPUT INSERTED.txn_id VALUES (?, ?, ?, ?, ?)',
+          [order.buyer_id, order.order_id, -amount, 'OrderPayment', `Payment for Order #${order.order_id}`]
+        );
+        await conn.query(
+          'UPDATE Users SET wallet_balance = wallet_balance - ? WHERE user_id = ?',
+          [amount, order.buyer_id]
+        );
+
+        // 3. Credit seller (Earning)
+        await conn.query(
+          'INSERT INTO Wallet_Transactions (user_id, order_id, amount, type, description) OUTPUT INSERTED.txn_id VALUES (?, ?, ?, ?, ?)',
+          [order.seller_id, order.order_id, amount, 'Earning', `Earning from Order #${order.order_id}`]
+        );
+        await conn.query(
+          'UPDATE Users SET wallet_balance = wallet_balance + ? WHERE user_id = ?',
+          [amount, order.seller_id]
+        );
+
+        await conn.commit();
+        return res.json({ message: 'Order status updated', status });
+      } catch (err) {
+        await conn.rollback();
+        throw err;
+      } finally {
+        conn.release();
+      }
+    }
+
+    // All other status transitions — plain update
     const [result] = await pool.query(
       'UPDATE Orders SET status = ?, updated_at = GETDATE() WHERE order_id = ?',
       [status, req.params.id]
@@ -166,6 +215,8 @@ exports.updateStatus = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
 
 // PUT update order
 exports.update = async (req, res) => {

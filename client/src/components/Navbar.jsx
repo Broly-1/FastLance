@@ -41,6 +41,14 @@ export default function Navbar() {
                 <Link to="/admin" className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700">Administration</Link>
               )}
               {user && user.role !== 'Admin' && (
+                <Link to="/wallet" className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700">
+                  <svg className="mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                  Wallet
+                </Link>
+              )}
+              {user && user.role !== 'Admin' && (
                 <Link to="/messages" className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700">
                   <svg className="mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
