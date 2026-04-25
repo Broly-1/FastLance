@@ -117,18 +117,54 @@ exports.create = async (req, res) => {
       return res.status(400).json({ error: 'You cannot purchase your own gig' });
     }
 
+    // Check buyer has sufficient wallet balance
+    const [balRows] = await pool.query('SELECT wallet_balance FROM Users WHERE user_id = ?', [buyer_id]);
+    if (balRows.length === 0) return res.status(404).json({ error: 'Buyer not found' });
+    const buyerBalance = Number(balRows[0].wallet_balance);
+    const price = Number(gig.price);
+    if (buyerBalance < price) {
+      return res.status(400).json({
+        error: `Insufficient wallet balance. You have $${buyerBalance.toFixed(2)} but this gig costs $${price.toFixed(2)}.`,
+      });
+    }
+
     const deadline = new Date();
     deadline.setDate(deadline.getDate() + gig.delivery_days);
 
-    const [result] = await pool.query(
-      'INSERT INTO Orders (gig_id, buyer_id, seller_id, total_price, deadline) OUTPUT INSERTED.order_id VALUES (?, ?, ?, ?, ?)',
-      [gig_id, buyer_id, gig.seller_id, gig.price, deadline]
-    );
-    res.status(201).json({ message: 'Order created', order_id: result.insertId });
+    // Atomically create the order and deduct from buyer wallet
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const [result] = await conn.query(
+        'INSERT INTO Orders (gig_id, buyer_id, seller_id, total_price, deadline) OUTPUT INSERTED.order_id VALUES (?, ?, ?, ?, ?)',
+        [gig_id, buyer_id, gig.seller_id, price, deadline]
+      );
+      const orderId = result.insertId;
+
+      // Deduct from buyer wallet
+      await conn.query(
+        'INSERT INTO Wallet_Transactions (user_id, order_id, amount, type, description) OUTPUT INSERTED.txn_id VALUES (?, ?, ?, ?, ?)',
+        [buyer_id, orderId, -price, 'OrderPayment', `Payment for Order #${orderId}`]
+      );
+      await conn.query(
+        'UPDATE Users SET wallet_balance = wallet_balance - ? WHERE user_id = ?',
+        [price, buyer_id]
+      );
+
+      await conn.commit();
+      res.status(201).json({ message: 'Order created', order_id: orderId });
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // PATCH update order status
 exports.updateStatus = async (req, res) => {
@@ -139,7 +175,6 @@ exports.updateStatus = async (req, res) => {
       return res.status(400).json({ error: 'Invalid order status' });
     }
 
-    // Fetch current order including financial/participant data
     const [rows] = await pool.query(
       `SELECT o.order_id, o.status, o.total_price, o.buyer_id, o.seller_id
        FROM Orders o WHERE o.order_id = ?`,
@@ -159,31 +194,17 @@ exports.updateStatus = async (req, res) => {
       });
     }
 
-    // When completing an order, atomically update status and settle wallet balances
+    const amount = Number(order.total_price);
+
+    // Completing: buyer already paid at order creation — only credit the seller
     if (status === 'Completed' && currentStatus !== 'Completed') {
       const conn = await pool.getConnection();
       try {
         await conn.beginTransaction();
-
-        // 1. Mark the order completed
         await conn.query(
           'UPDATE Orders SET status = ?, updated_at = GETDATE() WHERE order_id = ?',
           [status, req.params.id]
         );
-
-        const amount = Number(order.total_price);
-
-        // 2. Deduct from buyer (OrderPayment)
-        await conn.query(
-          'INSERT INTO Wallet_Transactions (user_id, order_id, amount, type, description) OUTPUT INSERTED.txn_id VALUES (?, ?, ?, ?, ?)',
-          [order.buyer_id, order.order_id, -amount, 'OrderPayment', `Payment for Order #${order.order_id}`]
-        );
-        await conn.query(
-          'UPDATE Users SET wallet_balance = wallet_balance - ? WHERE user_id = ?',
-          [amount, order.buyer_id]
-        );
-
-        // 3. Credit seller (Earning)
         await conn.query(
           'INSERT INTO Wallet_Transactions (user_id, order_id, amount, type, description) OUTPUT INSERTED.txn_id VALUES (?, ?, ?, ?, ?)',
           [order.seller_id, order.order_id, amount, 'Earning', `Earning from Order #${order.order_id}`]
@@ -192,7 +213,6 @@ exports.updateStatus = async (req, res) => {
           'UPDATE Users SET wallet_balance = wallet_balance + ? WHERE user_id = ?',
           [amount, order.seller_id]
         );
-
         await conn.commit();
         return res.json({ message: 'Order status updated', status });
       } catch (err) {
@@ -203,20 +223,44 @@ exports.updateStatus = async (req, res) => {
       }
     }
 
-    // All other status transitions — plain update
+    // Cancelling: refund the buyer what they paid at order creation
+    if (status === 'Cancelled' && currentStatus !== 'Cancelled') {
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+        await conn.query(
+          'UPDATE Orders SET status = ?, updated_at = GETDATE() WHERE order_id = ?',
+          [status, req.params.id]
+        );
+        await conn.query(
+          'INSERT INTO Wallet_Transactions (user_id, order_id, amount, type, description) OUTPUT INSERTED.txn_id VALUES (?, ?, ?, ?, ?)',
+          [order.buyer_id, order.order_id, amount, 'Refund', `Refund for cancelled Order #${order.order_id}`]
+        );
+        await conn.query(
+          'UPDATE Users SET wallet_balance = wallet_balance + ? WHERE user_id = ?',
+          [amount, order.buyer_id]
+        );
+        await conn.commit();
+        return res.json({ message: 'Order status updated', status });
+      } catch (err) {
+        await conn.rollback();
+        throw err;
+      } finally {
+        conn.release();
+      }
+    }
+
+    // All other transitions (Pending → In Progress, In Progress → Delivered, etc.)
     const [result] = await pool.query(
       'UPDATE Orders SET status = ?, updated_at = GETDATE() WHERE order_id = ?',
       [status, req.params.id]
     );
-
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Order not found' });
     res.json({ message: 'Order status updated', status });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
-
-
 
 // PUT update order
 exports.update = async (req, res) => {

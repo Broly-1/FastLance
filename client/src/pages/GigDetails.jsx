@@ -94,7 +94,6 @@ export default function GigDetails() {
         throw new Error(data.error || 'Failed to place order');
       }
 
-      alert('Order placed successfully!');
       if (data.order_id) {
         navigate(`/orders/${data.order_id}`);
         return;

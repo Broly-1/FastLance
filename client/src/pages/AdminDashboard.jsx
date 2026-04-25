@@ -1,31 +1,99 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/useAuth';
+
+const API = 'http://localhost:3000';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const [summary, setSummary] = useState(null);
-  const [topSellers, setTopSellers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetchAdminData = async () => {
-      try {
-        const [summaryRes, sellersRes] = await Promise.all([
-          fetch('http://localhost:3000/api/reports/platform-summary'),
-          fetch('http://localhost:3000/api/reports/top-sellers'),
-        ]);
-        if (!summaryRes.ok || !sellersRes.ok) throw new Error('Failed to fetch reporting data.');
-        setSummary(await summaryRes.json());
-        setTopSellers(await sellersRes.json());
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAdminData();
+  const [summary, setSummary]       = useState(null);
+  const [topSellers, setTopSellers] = useState([]);
+  const [disputes, setDisputes]     = useState([]);
+  const [users, setUsers]           = useState([]);
+  const [orders, setOrders]         = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState('');
+
+  // Active tab: 'overview' | 'users' | 'orders' | 'disputes'
+  const [tab, setTab] = useState('overview');
+
+  // Dispute resolution state
+  const [resolvingId, setResolvingId]         = useState(null);
+  const [resolution, setResolution]           = useState('');
+  const [orderAction, setOrderAction]         = useState('cancel');
+  const [resolveSubmitting, setResolveSubmitting] = useState(false);
+  const [resolveError, setResolveError]       = useState('');
+
+  const fetchAll = useCallback(async () => {
+    try {
+      const [summaryRes, sellersRes, disputesRes, usersRes, ordersRes] = await Promise.all([
+        fetch(`${API}/api/reports/platform-summary`),
+        fetch(`${API}/api/reports/top-sellers`),
+        fetch(`${API}/api/disputes`),
+        fetch(`${API}/api/users`),
+        fetch(`${API}/api/orders`),
+      ]);
+      if (!summaryRes.ok || !sellersRes.ok || !disputesRes.ok || !usersRes.ok || !ordersRes.ok)
+        throw new Error('Failed to fetch dashboard data.');
+      setSummary(await summaryRes.json());
+      setTopSellers(await sellersRes.json());
+      setDisputes(await disputesRes.json());
+      setUsers(await usersRes.json());
+      setOrders(await ordersRes.json());
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const handleResolve = async (e, disputeId) => {
+    e.preventDefault();
+    setResolveError('');
+    const trimmed = resolution.trim();
+    if (!trimmed) { setResolveError('Please enter a resolution note.'); return; }
+    try {
+      setResolveSubmitting(true);
+      const res = await fetch(`${API}/api/disputes/${disputeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'Resolved', resolution: trimmed, order_action: orderAction }),
+      });
+      if (!res.ok) throw new Error('Failed to resolve dispute.');
+      setResolvingId(null);
+      setResolution('');
+      setOrderAction('cancel');
+      await fetchAll();
+    } catch (err) {
+      setResolveError(err.message);
+    } finally {
+      setResolveSubmitting(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId, username) => {
+    if (!window.confirm(`Permanently delete user "${username}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`${API}/api/users/${userId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete user.');
+      await fetchAll();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteOrder = async (orderId) => {
+    if (!window.confirm(`Permanently delete Order #${orderId}? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`${API}/api/orders/${orderId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete order.');
+      await fetchAll();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
 
   if (loading) {
     return (
@@ -43,84 +111,297 @@ export default function AdminDashboard() {
     );
   }
 
+  const openDisputes = disputes.filter((d) => d.status === 'Open');
+  const resolvedDisputes = disputes.filter((d) => d.status !== 'Open');
+
+  const TABS = [
+    { id: 'overview',  label: '📊 Overview' },
+    { id: 'users',     label: `👥 Users (${users.length})` },
+    { id: 'orders',    label: `📦 Orders (${orders.length})` },
+    { id: 'disputes',  label: `⚠️ Disputes${openDisputes.length ? ` (${openDisputes.length})` : ''}` },
+  ];
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
 
       {/* Page header */}
-      <div className="brand-hero mb-8 px-6 py-8 sm:px-8">
-        <h1 className="brand-page-title text-3xl font-bold">Platform Overview</h1>
+      <div className="brand-hero mb-6 px-6 py-7 sm:px-8">
+        <h1 className="brand-page-title text-3xl font-bold">Administration</h1>
         <p className="brand-page-subtitle mt-1 text-sm">
-          Welcome back, <span className="font-semibold">{user?.username}</span>. Here is the current state of the platform.
+          Logged in as <span className="font-semibold">{user?.username}</span>
         </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-        <StatCard label="Total Users"       value={summary?.total_users ?? 0}                                         icon="👥" />
-        <StatCard label="Total Gigs"        value={summary?.total_gigs ?? 0}                                          icon="💼" />
-        <StatCard label="Completed Orders"  value={summary?.completed_orders ?? 0}                                    icon="✅" />
-        <StatCard label="Total Revenue"     value={`$${Number(summary?.total_revenue ?? 0).toLocaleString()}`}        icon="💰" />
-        <StatCard label="Avg. Rating"       value={`${summary?.platform_avg_rating ?? 0} / 5`}                        icon="⭐" />
+      {/* Tab bar */}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition border ${
+              tab === t.id
+                ? 'bg-[#1689ca] text-white border-[#1689ca]'
+                : 'bg-white text-slate-600 border-[#d4e7f3] hover:border-[#2da8ed] hover:text-[#1689ca]'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Top Sellers Table */}
-      <div className="brand-surface overflow-hidden">
-        <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-line)' }}>
-          <h3 className="brand-page-title text-lg font-bold">🏆 Top Performing Sellers</h3>
+      {/* ── OVERVIEW ── */}
+      {tab === 'overview' && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+            <StatCard label="Total Users"      value={summary?.total_users ?? 0}                                     icon="👥" />
+            <StatCard label="Total Gigs"       value={summary?.total_gigs ?? 0}                                      icon="💼" />
+            <StatCard label="Completed Orders" value={summary?.completed_orders ?? 0}                                icon="✅" />
+            <StatCard label="Total Revenue"    value={`$${Number(summary?.total_revenue ?? 0).toLocaleString()}`}    icon="💰" />
+            <StatCard label="Avg. Rating"      value={`${summary?.platform_avg_rating ?? 0} / 5`}                    icon="⭐" />
+          </div>
+          <div className="brand-surface overflow-hidden">
+            <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-line)' }}>
+              <h3 className="brand-page-title text-lg font-bold">🏆 Top Performing Sellers</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-xs uppercase tracking-wide border-b" style={{ borderColor: 'var(--brand-line)', color: 'var(--brand-muted)' }}>
+                    <th className="px-6 py-4 font-semibold">Seller</th>
+                    <th className="px-6 py-4 font-semibold text-center">Completed Orders</th>
+                    <th className="px-6 py-4 font-semibold text-center">Avg. Rating</th>
+                    <th className="px-6 py-4 font-semibold text-center">Reviews</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y" style={{ borderColor: 'var(--brand-line)' }}>
+                  {topSellers.map((seller, idx) => (
+                    <tr key={seller.user_id} className="transition-colors hover:bg-[#f1fbff]">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-sm border"
+                               style={{ background: '#eef9ff', borderColor: '#c8ecff', color: 'var(--brand-sky-700)' }}>
+                            {seller.username.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm" style={{ color: 'var(--brand-ink)' }}>{seller.username}</p>
+                            <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>Rank #{idx + 1}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-center"><span className="brand-chip rounded-full px-3 py-1 text-xs font-semibold">{seller.total_orders}</span></td>
+                      <td className="px-6 py-4 text-center"><span className="brand-chip-warm rounded-full px-3 py-1 text-xs font-semibold">⭐ {Number(seller.avg_rating).toFixed(2)}</span></td>
+                      <td className="px-6 py-4 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>{seller.total_reviews}</td>
+                    </tr>
+                  ))}
+                  {topSellers.length === 0 && (
+                    <tr><td colSpan="4" className="px-6 py-16 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>No completed orders found yet.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── USERS ── */}
+      {tab === 'users' && (
+        <div className="brand-surface overflow-hidden">
+          <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-line)' }}>
+            <h3 className="brand-page-title text-lg font-bold">All Users</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-xs uppercase tracking-wide border-b" style={{ borderColor: 'var(--brand-line)', color: 'var(--brand-muted)' }}>
+                  <th className="px-6 py-4 font-semibold">User</th>
+                  <th className="px-6 py-4 font-semibold">Role</th>
+                  <th className="px-6 py-4 font-semibold">Balance</th>
+                  <th className="px-6 py-4 font-semibold">Status</th>
+                  <th className="px-6 py-4 font-semibold">Joined</th>
+                  <th className="px-6 py-4 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y" style={{ borderColor: 'var(--brand-line)' }}>
+                {users.map((u) => (
+                  <tr key={u.user_id} className="transition-colors hover:bg-[#f1fbff]">
+                    <td className="px-6 py-4">
+                      <p className="font-semibold text-sm" style={{ color: 'var(--brand-ink)' }}>{u.username}</p>
+                      <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>{u.email}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="brand-chip rounded-full px-2.5 py-1 text-xs font-semibold">{u.role}</span>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-medium" style={{ color: 'var(--brand-ink)' }}>
+                      ${Number(u.wallet_balance ?? 0).toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4">
+                      {u.is_active
+                        ? <span className="brand-status brand-status-completed">Active</span>
+                        : <span className="brand-status brand-status-cancelled">Suspended</span>}
+                    </td>
+                    <td className="px-6 py-4 text-sm" style={{ color: 'var(--brand-muted)' }}>
+                      {new Date(u.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {u.role !== 'Admin' && (
+                        <button
+                          onClick={() => handleDeleteUser(u.user_id, u.username)}
+                          className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="text-xs uppercase tracking-wide border-b" style={{ borderColor: 'var(--brand-line)', color: 'var(--brand-muted)' }}>
-                <th className="px-6 py-4 font-semibold">Seller</th>
-                <th className="px-6 py-4 font-semibold text-center">Completed Orders</th>
-                <th className="px-6 py-4 font-semibold text-center">Avg. Rating</th>
-                <th className="px-6 py-4 font-semibold text-center">Reviews</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y" style={{ borderColor: 'var(--brand-line)' }}>
-              {topSellers.map((seller, idx) => (
-                <tr key={seller.user_id} className="transition-colors hover:bg-[#f1fbff]">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-sm border"
-                           style={{ background: '#eef9ff', borderColor: '#c8ecff', color: 'var(--brand-sky-700)' }}>
-                        {seller.profile_pic_url
-                          ? <img src={seller.profile_pic_url} alt={seller.username} className="h-9 w-9 rounded-full object-cover" />
-                          : seller.username.charAt(0).toUpperCase()}
+      )}
+
+      {/* ── ORDERS ── */}
+      {tab === 'orders' && (
+        <div className="brand-surface overflow-hidden">
+          <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-line)' }}>
+            <h3 className="brand-page-title text-lg font-bold">All Orders</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-xs uppercase tracking-wide border-b" style={{ borderColor: 'var(--brand-line)', color: 'var(--brand-muted)' }}>
+                  <th className="px-6 py-4 font-semibold">#</th>
+                  <th className="px-6 py-4 font-semibold">Gig</th>
+                  <th className="px-6 py-4 font-semibold">Buyer</th>
+                  <th className="px-6 py-4 font-semibold">Seller</th>
+                  <th className="px-6 py-4 font-semibold">Amount</th>
+                  <th className="px-6 py-4 font-semibold">Status</th>
+                  <th className="px-6 py-4 font-semibold">Date</th>
+                  <th className="px-6 py-4 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y" style={{ borderColor: 'var(--brand-line)' }}>
+                {orders.map((o) => (
+                  <tr key={o.order_id} className="transition-colors hover:bg-[#f1fbff]">
+                    <td className="px-6 py-4 text-sm font-mono" style={{ color: 'var(--brand-muted)' }}>#{o.order_id}</td>
+                    <td className="px-6 py-4 max-w-[200px]">
+                      <p className="text-sm font-medium truncate" style={{ color: 'var(--brand-ink)' }}>{o.gig_title}</p>
+                    </td>
+                    <td className="px-6 py-4 text-sm" style={{ color: 'var(--brand-ink)' }}>{o.buyer_name}</td>
+                    <td className="px-6 py-4 text-sm" style={{ color: 'var(--brand-ink)' }}>{o.seller_name}</td>
+                    <td className="px-6 py-4 text-sm font-semibold" style={{ color: 'var(--brand-ink)' }}>
+                      ${Number(o.total_price).toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <OrderStatusBadge status={o.status} />
+                    </td>
+                    <td className="px-6 py-4 text-sm" style={{ color: 'var(--brand-muted)' }}>
+                      {new Date(o.order_date).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleDeleteOrder(o.order_id)}
+                        className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {orders.length === 0 && (
+                  <tr><td colSpan="8" className="px-6 py-16 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>No orders yet.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── DISPUTES ── */}
+      {tab === 'disputes' && (
+        <div className="brand-surface overflow-hidden">
+          <div className="px-6 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--brand-line)' }}>
+            <h3 className="brand-page-title text-lg font-bold">⚠️ Dispute Management</h3>
+            {openDisputes.length > 0 && (
+              <span className="brand-status border-red-200 bg-red-50 text-red-700">{openDisputes.length} Open</span>
+            )}
+          </div>
+          {disputes.length === 0 ? (
+            <div className="px-6 py-16 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>No disputes have been raised yet.</div>
+          ) : (
+            <div className="divide-y" style={{ borderColor: 'var(--brand-line)' }}>
+              {[...openDisputes, ...resolvedDisputes].map((d) => (
+                <div key={d.dispute_id} className="px-6 py-5">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="font-bold text-sm" style={{ color: 'var(--brand-ink)' }}>Dispute #{d.dispute_id}</span>
+                        <span className={`brand-status ${d.status === 'Open' ? 'border-red-200 bg-red-50 text-red-700' : 'brand-status-completed'}`}>{d.status}</span>
+                        <span className="brand-chip rounded-full px-2 py-0.5 text-xs">Order #{d.order_id}</span>
                       </div>
-                      <div>
-                        <p className="font-semibold text-sm" style={{ color: 'var(--brand-ink)' }}>{seller.username}</p>
-                        <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>Rank #{idx + 1}</p>
-                      </div>
+                      <p className="text-xs mb-1" style={{ color: 'var(--brand-muted)' }}>
+                        {d.gig_title} · Raised by <span className="font-semibold" style={{ color: 'var(--brand-ink)' }}>{d.raised_by_name}</span>
+                        {' · '}{new Date(d.created_at).toLocaleDateString()}
+                      </p>
+                      <p className="text-sm mt-2 rounded-lg border border-red-100 bg-red-50 px-3 py-2" style={{ color: 'var(--brand-ink)' }}>{d.reason}</p>
+                      {d.resolution && (
+                        <p className="text-sm mt-2 rounded-lg border border-[#c9e8d5] bg-[#edf9f2] px-3 py-2">
+                          <span className="font-semibold text-[#1b7850]">Resolution: </span>{d.resolution}
+                        </p>
+                      )}
                     </div>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="brand-chip rounded-full px-3 py-1 text-xs font-semibold">
-                      {seller.total_orders}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="brand-chip-warm rounded-full px-3 py-1 text-xs font-semibold">
-                      ⭐ {Number(seller.avg_rating).toFixed(2)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>
-                    {seller.total_reviews}
-                  </td>
-                </tr>
+                    {d.status === 'Open' && (
+                      <div className="sm:ml-4 flex-shrink-0">
+                        {resolvingId !== d.dispute_id ? (
+                          <button
+                            onClick={() => { setResolvingId(d.dispute_id); setResolution(''); setResolveError(''); }}
+                            className="brand-button-primary rounded-lg px-4 py-2 text-sm font-semibold transition"
+                          >
+                            Resolve
+                          </button>
+                        ) : (
+                          <form onSubmit={(e) => handleResolve(e, d.dispute_id)} className="space-y-2 w-56">
+                            <div>
+                              <label className="block text-xs font-medium mb-1" style={{ color: 'var(--brand-muted)' }}>Order Outcome</label>
+                              <select
+                                value={orderAction}
+                                onChange={(e) => setOrderAction(e.target.value)}
+                                className="brand-input text-sm"
+                              >
+                                <option value="cancel">↩️ Refund Buyer (Cancel)</option>
+                                <option value="complete">✅ Pay Seller (Complete)</option>
+                              </select>
+                            </div>
+                            <textarea
+                              rows="3"
+                              required
+                              className="brand-input text-sm"
+                              placeholder="Enter resolution note..."
+                              value={resolution}
+                              onChange={(e) => setResolution(e.target.value)}
+                            />
+                            {resolveError && <p className="text-xs text-red-600">{resolveError}</p>}
+                            <div className="flex gap-2">
+                              <button type="submit" disabled={resolveSubmitting}
+                                className="flex-1 brand-button-primary rounded-lg py-1.5 text-xs font-semibold transition disabled:opacity-60">
+                                {resolveSubmitting ? 'Saving...' : 'Confirm'}
+                              </button>
+                              <button type="button" onClick={() => setResolvingId(null)}
+                                className="brand-button-neutral rounded-lg px-3 py-1.5 text-xs font-semibold transition">
+                                Cancel
+                              </button>
+                            </div>
+                          </form>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               ))}
-              {topSellers.length === 0 && (
-                <tr>
-                  <td colSpan="4" className="px-6 py-16 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>
-                    No completed orders found yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+            </div>
+          )}
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -135,4 +416,16 @@ function StatCard({ label, value, icon }) {
       <p className="text-2xl font-bold" style={{ color: 'var(--brand-ink)' }}>{value}</p>
     </div>
   );
+}
+
+function OrderStatusBadge({ status }) {
+  const map = {
+    Pending:      'brand-status-pending',
+    'In Progress':'brand-status-progress',
+    Delivered:    'brand-status-delivered',
+    Completed:    'brand-status-completed',
+    Cancelled:    'brand-status-cancelled',
+    Disputed:     'border-red-200 bg-red-50 text-red-700',
+  };
+  return <span className={`brand-status ${map[status] ?? ''}`}>{status}</span>;
 }

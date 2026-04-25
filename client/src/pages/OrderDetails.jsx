@@ -62,10 +62,11 @@ async function fetchOptionalReviewByOrder(orderId) {
 }
 
 async function fetchOrderPageData(orderId) {
-  const [orderResponse, submissionsResponse, review] = await Promise.all([
+  const [orderResponse, submissionsResponse, review, disputesResponse] = await Promise.all([
     fetch(`${API_BASE_URL}/api/orders/${orderId}`),
     fetch(`${API_BASE_URL}/api/submissions/order/${orderId}`),
     fetchOptionalReviewByOrder(orderId),
+    fetch(`${API_BASE_URL}/api/disputes/order/${orderId}`),
   ]);
 
   const orderData = await readJsonResponse(orderResponse, 'Order not found');
@@ -73,11 +74,13 @@ async function fetchOrderPageData(orderId) {
     submissionsResponse,
     'Failed to load order activity'
   );
+  const disputesData = await readJsonResponse(disputesResponse, 'Failed to load disputes');
 
   return {
     order: orderData,
     submissions: Array.isArray(submissionsData) ? submissionsData : [],
     review,
+    disputes: Array.isArray(disputesData) ? disputesData : [],
   };
 }
 
@@ -111,11 +114,17 @@ function OrderDetails() {
   const [actionError, setActionError] = useState(null);
   const [actionSuccess, setActionSuccess] = useState(null);
 
+  const [disputes, setDisputes] = useState([]);
+  const [showDisputeForm, setShowDisputeForm] = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+
   const applyPageData = (data) => {
     setOrder(data.order);
     setSubmissions(data.submissions);
     setReview(data.review);
     setSellerReplyDraft(data.review?.seller_reply || '');
+    setDisputes(data.disputes ?? []);
   };
 
   useEffect(() => {
@@ -331,6 +340,38 @@ function OrderDetails() {
       setActionError(err.message);
     } finally {
       setReplySubmitting(false);
+    }
+  };
+
+  const handleRaiseDispute = async (event) => {
+    event.preventDefault();
+    const trimmed = disputeReason.trim();
+    if (!trimmed) {
+      setActionError('Please describe the issue before submitting.');
+      setActionSuccess(null);
+      return;
+    }
+    try {
+      setDisputeSubmitting(true);
+      resetFeedback();
+      const response = await fetch(`${API_BASE_URL}/api/disputes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: Number(orderId),
+          raised_by: user.id,
+          reason: trimmed,
+        }),
+      });
+      await readJsonResponse(response, 'Failed to open dispute');
+      setDisputeReason('');
+      setShowDisputeForm(false);
+      await refreshOrderPage();
+      setActionSuccess('Dispute raised. An admin will review it shortly.');
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setDisputeSubmitting(false);
     }
   };
 
@@ -771,6 +812,88 @@ function OrderDetails() {
             <div className="rounded-lg border border-red-100 bg-red-50 p-5 text-center shadow-sm">
               <h3 className="mb-1 font-bold text-red-900">Order Cancelled</h3>
               <p className="text-sm text-red-800">This order is no longer active.</p>
+            </div>
+          )}
+
+          {/* ── Dispute Section ── */}
+          {isParticipant && (
+            <div className="space-y-4">
+              {disputes.map((d) => (
+                <div key={d.dispute_id} className="brand-surface p-5">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h3 className="font-bold text-slate-900">⚠️ Dispute #{d.dispute_id}</h3>
+                    <span
+                      className={`brand-status ${
+                        d.status === 'Open'
+                          ? 'border-red-200 bg-red-50 text-red-700'
+                          : 'brand-status-completed'
+                      }`}
+                    >
+                      {d.status}
+                    </span>
+                  </div>
+                  <p className="mb-2 text-xs text-slate-500">
+                    Raised by <span className="font-semibold text-slate-700">{d.raised_by_name}</span>
+                  </p>
+                  <div className="rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-slate-700">
+                    {d.reason}
+                  </div>
+                  {d.resolution && (
+                    <div className="mt-2 rounded-lg border border-[#c9e8d5] bg-[#edf9f2] px-4 py-3 text-sm text-slate-700">
+                      <span className="font-semibold text-[#1b7850]">Resolution: </span>{d.resolution}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {['In Progress', 'Delivered'].includes(order.status) &&
+                !disputes.some((d) => d.status === 'Open') && (
+                  <div className="brand-surface p-5">
+                    <h3 className="mb-3 font-bold text-slate-900">Raise a Dispute</h3>
+                    <p className="mb-4 text-sm text-slate-600">
+                      If there is an issue with this order that cannot be resolved directly, open a dispute for admin review.
+                    </p>
+                    {!showDisputeForm ? (
+                      <button
+                        type="button"
+                        onClick={() => { resetFeedback(); setShowDisputeForm(true); }}
+                        className="w-full rounded-md border border-red-200 bg-white px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50"
+                      >
+                        ⚠️ Open Dispute
+                      </button>
+                    ) : (
+                      <form onSubmit={handleRaiseDispute} className="space-y-3">
+                        <div>
+                          <label className="mb-1 block text-sm font-medium text-slate-700">Reason</label>
+                          <textarea
+                            rows="4"
+                            required
+                            className="brand-input"
+                            placeholder="Describe the issue clearly..."
+                            value={disputeReason}
+                            onChange={(e) => setDisputeReason(e.target.value)}
+                          />
+                        </div>
+                        <div className="flex gap-3">
+                          <button
+                            type="submit"
+                            disabled={disputeSubmitting}
+                            className="flex-1 rounded-md border border-red-300 bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {disputeSubmitting ? 'Submitting...' : 'Submit Dispute'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setShowDisputeForm(false); setDisputeReason(''); }}
+                            className="brand-button-neutral rounded-md px-4 py-2 text-sm font-semibold transition"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
+                )}
             </div>
           )}
         </div>

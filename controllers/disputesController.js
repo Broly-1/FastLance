@@ -52,8 +52,81 @@ exports.create = async (req, res) => {
 // PUT update/resolve dispute
 exports.update = async (req, res) => {
   try {
-    const { status, resolution } = req.body;
+    const { status, resolution, order_action } = req.body;
     const resolved_at = status === 'Resolved' ? new Date() : null;
+
+    // Fetch the dispute's linked order
+    const [disputes] = await pool.query(
+      'SELECT dispute_id, order_id FROM Disputes WHERE dispute_id = ?',
+      [req.params.id]
+    );
+    if (disputes.length === 0) return res.status(404).json({ error: 'Dispute not found' });
+    const { order_id } = disputes[0];
+
+    // When resolving with an order action, run everything atomically
+    if (status === 'Resolved' && order_action) {
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+
+        // 1. Resolve the dispute record
+        await conn.query(
+          `UPDATE Disputes SET status = ?, resolution = COALESCE(?, resolution), resolved_at = ? WHERE dispute_id = ?`,
+          [status, resolution || null, resolved_at, req.params.id]
+        );
+
+        // 2. Fetch the order details for wallet operations
+        const [orders] = await conn.query(
+          'SELECT order_id, buyer_id, seller_id, total_price FROM Orders WHERE order_id = ?',
+          [order_id]
+        );
+
+        if (orders.length > 0) {
+          const order = orders[0];
+          const amount = Number(order.total_price);
+
+          if (order_action === 'cancel') {
+            // Cancel order → refund buyer (they paid at creation)
+            await conn.query(
+              "UPDATE Orders SET status = 'Cancelled', updated_at = GETDATE() WHERE order_id = ?",
+              [order_id]
+            );
+            await conn.query(
+              'INSERT INTO Wallet_Transactions (user_id, order_id, amount, type, description) OUTPUT INSERTED.txn_id VALUES (?, ?, ?, ?, ?)',
+              [order.buyer_id, order_id, amount, 'Refund', `Dispute resolution refund for Order #${order_id}`]
+            );
+            await conn.query(
+              'UPDATE Users SET wallet_balance = wallet_balance + ? WHERE user_id = ?',
+              [amount, order.buyer_id]
+            );
+          } else if (order_action === 'complete') {
+            // Complete order → credit seller
+            await conn.query(
+              "UPDATE Orders SET status = 'Completed', updated_at = GETDATE() WHERE order_id = ?",
+              [order_id]
+            );
+            await conn.query(
+              'INSERT INTO Wallet_Transactions (user_id, order_id, amount, type, description) OUTPUT INSERTED.txn_id VALUES (?, ?, ?, ?, ?)',
+              [order.seller_id, order_id, amount, 'Earning', `Dispute resolution earning for Order #${order_id}`]
+            );
+            await conn.query(
+              'UPDATE Users SET wallet_balance = wallet_balance + ? WHERE user_id = ?',
+              [amount, order.seller_id]
+            );
+          }
+        }
+
+        await conn.commit();
+        return res.json({ message: 'Dispute resolved' });
+      } catch (err) {
+        await conn.rollback();
+        throw err;
+      } finally {
+        conn.release();
+      }
+    }
+
+    // Simple status update (no order action required)
     const [result] = await pool.query(
       `UPDATE Disputes SET status = COALESCE(?, status), resolution = COALESCE(?, resolution),
        resolved_at = COALESCE(?, resolved_at) WHERE dispute_id = ?`,
@@ -65,6 +138,7 @@ exports.update = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // DELETE dispute
 exports.remove = async (req, res) => {
