@@ -1,5 +1,15 @@
 const pool = require('../db');
 
+// Fire-and-forget notification helper
+async function notify(userId, type, title, body) {
+  try {
+    await pool.query(
+      'INSERT INTO Notifications (user_id, type, title, body) OUTPUT INSERTED.notification_id VALUES (?, ?, ?, ?)',
+      [userId, type, title, body || null]
+    );
+  } catch (_) { /* never block the main flow */ }
+}
+
 // GET conversation between two users
 exports.getConversation = async (req, res) => {
   try {
@@ -53,6 +63,7 @@ exports.create = async (req, res) => {
       'INSERT INTO Messages (sender_id, receiver_id, order_id, content, message_type) OUTPUT INSERTED.message_id VALUES (?, ?, ?, ?, ?)',
       [sender_id, receiver_id, order_id || null, content, message_type || 'Text']
     );
+    notify(receiver_id, 'Message', 'New Message Received', `You have a new message from user #${sender_id}.`);
     res.status(201).json({ message: 'Message sent', message_id: result.insertId });
   } catch (err) {
     res.status(500).json({ error: err.message });

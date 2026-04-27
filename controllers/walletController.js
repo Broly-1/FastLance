@@ -1,5 +1,15 @@
 const pool = require('../db');
 
+// Fire-and-forget notification helper
+async function notify(userId, type, title, body) {
+  try {
+    await pool.query(
+      'INSERT INTO Notifications (user_id, type, title, body) OUTPUT INSERTED.notification_id VALUES (?, ?, ?, ?)',
+      [userId, type, title, body || null]
+    );
+  } catch (_) { /* never block the main flow */ }
+}
+
 // GET transactions by user
 exports.getByUser = async (req, res) => {
   try {
@@ -45,6 +55,7 @@ exports.create = async (req, res) => {
         [amount, user_id]
       );
       await conn.commit();
+      notify(user_id, 'Payment', 'Wallet Transaction', `You received a ${type} of $${amount}.`);
       res.status(201).json({ message: 'Transaction recorded', txn_id: result.insertId });
     } catch (err) {
       await conn.rollback();
@@ -90,6 +101,7 @@ exports.refund = async (req, res) => {
       );
 
       await conn.commit();
+      notify(buyerId, 'Payment', 'Order Refund Processed', `A refund of $${amount} was added to your wallet for Order #${order_id}.`);
       res.status(200).json({ message: 'Refund successful', txn_id: result.insertId });
     } catch (err) {
       await conn.rollback();

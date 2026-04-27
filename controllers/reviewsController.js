@@ -1,5 +1,15 @@
 const pool = require('../db');
 
+// Fire-and-forget notification helper
+async function notify(userId, type, title, body) {
+  try {
+    await pool.query(
+      'INSERT INTO Notifications (user_id, type, title, body) OUTPUT INSERTED.notification_id VALUES (?, ?, ?, ?)',
+      [userId, type, title, body || null]
+    );
+  } catch (_) { /* never block the main flow */ }
+}
+
 function normalizeOptionalText(value) {
   if (typeof value !== 'string') {
     return null;
@@ -100,6 +110,9 @@ exports.create = async (req, res) => {
       'INSERT INTO Reviews (order_id, reviewer_id, rating, comment) OUTPUT INSERTED.review_id VALUES (?, ?, ?, ?)',
       [orderId, reviewerId, ratingValue, normalizedComment]
     );
+
+    notify(order.seller_id, 'Review', 'New Review Received', `Buyer left a ${ratingValue}-star review on order #${orderId}.`);
+
     res.status(201).json({ message: 'Review created', review_id: result.insertId });
   } catch (err) {
     res.status(500).json({ error: err.message });
