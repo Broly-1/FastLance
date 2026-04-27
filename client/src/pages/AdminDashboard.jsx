@@ -11,10 +11,11 @@ export default function AdminDashboard() {
   const [disputes, setDisputes]     = useState([]);
   const [users, setUsers]           = useState([]);
   const [orders, setOrders]         = useState([]);
+  const [tags, setTags]             = useState([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState('');
 
-  // Active tab: 'overview' | 'users' | 'orders' | 'disputes'
+  // Active tab: 'overview' | 'users' | 'orders' | 'disputes' | 'tags'
   const [tab, setTab] = useState('overview');
 
   // Dispute resolution state
@@ -26,20 +27,22 @@ export default function AdminDashboard() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [summaryRes, sellersRes, disputesRes, usersRes, ordersRes] = await Promise.all([
+      const [summaryRes, sellersRes, disputesRes, usersRes, ordersRes, tagsRes] = await Promise.all([
         fetch(`${API}/api/reports/platform-summary`),
         fetch(`${API}/api/reports/top-sellers`),
         fetch(`${API}/api/disputes`),
         fetch(`${API}/api/users`),
         fetch(`${API}/api/orders`),
+        fetch(`${API}/api/tags`)
       ]);
-      if (!summaryRes.ok || !sellersRes.ok || !disputesRes.ok || !usersRes.ok || !ordersRes.ok)
+      if (!summaryRes.ok || !sellersRes.ok || !disputesRes.ok || !usersRes.ok || !ordersRes.ok || !tagsRes.ok)
         throw new Error('Failed to fetch dashboard data.');
       setSummary(await summaryRes.json());
       setTopSellers(await sellersRes.json());
       setDisputes(await disputesRes.json());
       setUsers(await usersRes.json());
       setOrders(await ordersRes.json());
+      setTags(await tagsRes.json());
     } catch (err) {
       setError(err.message);
     } finally {
@@ -84,11 +87,82 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleToggleSuspendUser = async (userId, isActive) => {
+    const action = isActive ? 'suspend' : 'activate';
+    if (!window.confirm(`Are you sure you want to ${action} this user?`)) return;
+    try {
+      const res = await fetch(`${API}/api/users/${userId}/${action}`, { method: 'POST' });
+      if (!res.ok) throw new Error(`Failed to ${action} user.`);
+      await fetchAll();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const handleDeleteOrder = async (orderId) => {
     if (!window.confirm(`Permanently delete Order #${orderId}? This cannot be undone.`)) return;
     try {
       const res = await fetch(`${API}/api/orders/${orderId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete order.');
+      await fetchAll();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleRefundOrder = async (orderId) => {
+    const amountStr = window.prompt(`Issue refund for Order #${orderId}.\nEnter the refund amount:`);
+    if (!amountStr) return;
+    const amount = Number(amountStr);
+    if (isNaN(amount) || amount <= 0) return alert('Invalid amount');
+    
+    const reason = window.prompt('Enter reason for refund:');
+    if (!reason) return;
+
+    try {
+      const res = await fetch(`${API}/api/wallet/refund`, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId, amount, description: reason })
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Failed to process refund.');
+      }
+      alert('Refund processed successfully!');
+      await fetchAll();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleAddTag = async () => {
+    const name = window.prompt('Enter new tag name:');
+    if (!name || !name.trim()) return;
+    try {
+      const res = await fetch(`${API}/api/tags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() })
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Failed to add tag.');
+      }
+      await fetchAll();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteTag = async (tagId, tagName) => {
+    if (!window.confirm(`Permanently delete tag "${tagName}"? This may fail if it is attached to gigs.`)) return;
+    try {
+      const res = await fetch(`${API}/api/tags/${tagId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Failed to delete tag.');
+      }
       await fetchAll();
     } catch (err) {
       alert(err.message);
@@ -119,6 +193,7 @@ export default function AdminDashboard() {
     { id: 'users',     label: `👥 Users (${users.length})` },
     { id: 'orders',    label: `📦 Orders (${orders.length})` },
     { id: 'disputes',  label: `⚠️ Disputes${openDisputes.length ? ` (${openDisputes.length})` : ''}` },
+    { id: 'tags',      label: `🏷️ Tags (${tags.length})` },
   ];
 
   return (
@@ -244,12 +319,20 @@ export default function AdminDashboard() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       {u.role !== 'Admin' && (
-                        <button
-                          onClick={() => handleDeleteUser(u.user_id, u.username)}
-                          className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
-                        >
-                          Delete
-                        </button>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleToggleSuspendUser(u.user_id, u.is_active)}
+                            className="rounded-lg border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-orange-600 transition hover:bg-orange-50"
+                          >
+                            {u.is_active ? 'Suspend' : 'Activate'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(u.user_id, u.username)}
+                            className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -299,8 +382,61 @@ export default function AdminDashboard() {
                       {new Date(o.order_date).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => handleRefundOrder(o.order_id)}
+                          className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-600 transition hover:bg-blue-50"
+                        >
+                          Refund
+                        </button>
+                        <button
+                          onClick={() => handleDeleteOrder(o.order_id)}
+                          className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {orders.length === 0 && (
+                  <tr><td colSpan="8" className="px-6 py-16 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>No orders yet.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAGS ── */}
+      {tab === 'tags' && (
+        <div className="brand-surface overflow-hidden">
+          <div className="px-6 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--brand-line)' }}>
+            <h3 className="brand-page-title text-lg font-bold">Manage Tags</h3>
+            <button
+              onClick={handleAddTag}
+              className="brand-button-primary rounded-lg px-4 py-2 text-sm font-semibold transition"
+            >
+              + Create Tag
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-xs uppercase tracking-wide border-b" style={{ borderColor: 'var(--brand-line)', color: 'var(--brand-muted)' }}>
+                  <th className="px-6 py-4 font-semibold">ID</th>
+                  <th className="px-6 py-4 font-semibold">Tag Name</th>
+                  <th className="px-6 py-4 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y" style={{ borderColor: 'var(--brand-line)' }}>
+                {tags.map((t) => (
+                  <tr key={t.tag_id} className="transition-colors hover:bg-[#f1fbff]">
+                    <td className="px-6 py-4 text-sm font-mono" style={{ color: 'var(--brand-muted)' }}>{t.tag_id}</td>
+                    <td className="px-6 py-4 text-sm font-medium" style={{ color: 'var(--brand-ink)' }}>{t.name}</td>
+                    <td className="px-6 py-4 text-right">
                       <button
-                        onClick={() => handleDeleteOrder(o.order_id)}
+                        onClick={() => handleDeleteTag(t.tag_id, t.name)}
                         className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
                       >
                         Delete
@@ -308,8 +444,8 @@ export default function AdminDashboard() {
                     </td>
                   </tr>
                 ))}
-                {orders.length === 0 && (
-                  <tr><td colSpan="8" className="px-6 py-16 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>No orders yet.</td></tr>
+                {tags.length === 0 && (
+                  <tr><td colSpan="3" className="px-6 py-16 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>No tags found.</td></tr>
                 )}
               </tbody>
             </table>

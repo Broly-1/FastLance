@@ -104,3 +104,31 @@ exports.remove = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// POST suspend user
+exports.suspend = async (req, res) => {
+  try {
+    const [result] = await pool.query(
+      'UPDATE Users SET is_active = 0 WHERE user_id = ?',
+      [req.params.id]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'User not found' });
+    res.json({ message: 'User suspended successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// POST activate user
+exports.activate = async (req, res) => {
+  try {
+    const [result] = await pool.query(
+      'UPDATE Users SET is_active = 1 WHERE user_id = ?',
+      [req.params.id]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'User not found' });
+    res.json({ message: 'User activated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

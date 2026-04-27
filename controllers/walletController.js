@@ -56,3 +56,48 @@ exports.create = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// POST manual refund for an order (Admin)
+exports.refund = async (req, res) => {
+  try {
+    const { order_id, amount, description } = req.body;
+    if (!order_id || !amount) {
+      return res.status(400).json({ error: 'order_id and amount are required' });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      // Find the buyer ID for the refund
+      const [orders] = await conn.query('SELECT buyer_id FROM Orders WHERE order_id = ?', [order_id]);
+      if (orders.length === 0) {
+         await conn.rollback();
+         return res.status(404).json({ error: 'Order not found' });
+      }
+      const buyerId = orders[0].buyer_id;
+
+      // Insert refund transaction
+      const [result] = await conn.query(
+        'INSERT INTO Wallet_Transactions (user_id, order_id, amount, type, description) OUTPUT INSERTED.txn_id VALUES (?, ?, ?, ?, ?)',
+        [buyerId, order_id, amount, 'Refund', description || 'Admin manual refund']
+      );
+
+      // Refund buyer balance
+      await conn.query(
+        'UPDATE Users SET wallet_balance = wallet_balance + ? WHERE user_id = ?',
+        [amount, buyerId]
+      );
+
+      await conn.commit();
+      res.status(200).json({ message: 'Refund successful', txn_id: result.insertId });
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

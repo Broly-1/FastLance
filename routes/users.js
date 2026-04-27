@@ -7,5 +7,7 @@ router.get('/:id', ctrl.getById);
 router.post('/', ctrl.create);
 router.put('/:id', ctrl.update);
 router.delete('/:id', ctrl.remove);
+router.post('/:id/suspend', ctrl.suspend);
+router.post('/:id/activate', ctrl.activate);
 
 module.exports = router;

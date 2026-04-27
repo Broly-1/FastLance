@@ -21,6 +21,7 @@ app.use('/api/wallet', require('./routes/wallet'));
 app.use('/api/disputes', require('./routes/disputes'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/reports', require('./routes/reports'));
+app.use('/api/tags', require('./routes/tags'));
 
 // Health check
 app.get('/', (req, res) => {
