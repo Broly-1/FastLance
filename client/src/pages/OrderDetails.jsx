@@ -398,6 +398,62 @@ function OrderDetails() {
     }
   };
 
+  const handleCreateMilestone = async (event) => {
+    event.preventDefault();
+    if (!milestoneTitle.trim() || !milestoneDeadline) {
+      setActionError('Title and deadline are required for milestones.');
+      return;
+    }
+    try {
+      setMilestoneSubmitting(true);
+      resetFeedback();
+      const response = await fetch(`${API_BASE_URL}/api/milestones`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          order_id: Number(orderId),
+          title: milestoneTitle.trim(),
+          description: milestoneDesc.trim(),
+          deadline: milestoneDeadline,
+          amount: parseFloat(milestoneAmount) || null,
+          is_critical_path: milestoneCritical
+        }),
+      });
+      await readJsonResponse(response, 'Failed to create milestone');
+      setMilestoneTitle('');
+      setMilestoneDesc('');
+      setMilestoneDeadline('');
+      setMilestoneAmount('');
+      setMilestoneCritical(false);
+      setShowMilestoneForm(false);
+      await refreshOrderPage();
+      setActionSuccess('Milestone created.');
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setMilestoneSubmitting(false);
+    }
+  };
+
+  const handleCompleteMilestone = async (milestoneId) => {
+    try {
+      resetFeedback();
+      const response = await fetch(`${API_BASE_URL}/api/milestones/${milestoneId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'Completed',
+          completed_at: new Date().toISOString()
+        }),
+      });
+      await readJsonResponse(response, 'Failed to complete milestone');
+      await refreshOrderPage();
+      setActionSuccess('Milestone marked as completed.');
+    } catch (err) {
+      setActionError(err.message);
+    }
+  };
+
   if (loading) {
     return <div className="p-8 text-center text-slate-500">Loading order details...</div>;
   }
@@ -559,7 +615,14 @@ function OrderDetails() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Deadline</span>
-                <span className="font-medium text-[#0f699e]">{new Date(order.deadline).toLocaleDateString()}</span>
+                <span className={`font-medium ${
+                  ['Pending', 'In Progress', 'Delivered'].includes(order.status) && new Date(order.deadline) < new Date()
+                    ? 'text-red-600 animate-pulse'
+                    : 'text-[#0f699e]'
+                }`}>
+                  {new Date(order.deadline).toLocaleDateString()}
+                  {['Pending', 'In Progress', 'Delivered'].includes(order.status) && new Date(order.deadline) < new Date() && ' (Overdue)'}
+                </span>
               </div>
             </div>
 
@@ -570,7 +633,7 @@ function OrderDetails() {
                   isBuyer ? order.seller_id : order.buyer_id
                 }&name=${encodeURIComponent(
                   isBuyer ? order.seller_name : order.buyer_name
-                )}`}
+                )}&orderId=${orderId}`}
                 className="brand-button-neutral mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -837,6 +900,91 @@ function OrderDetails() {
               <p className="text-sm text-red-800">This order is no longer active.</p>
             </div>
           )}
+
+          
+          {/* ── Milestones Section ── */}
+          <div className="space-y-4">
+            <h3 className="mb-3 font-bold text-slate-900 border-b pb-2">Order Milestones</h3>
+            
+            {milestones.length > 0 ? (
+              milestones.map((m) => (
+                <div key={m.milestone_id} className="brand-surface p-4 border-l-4 border-[#0f699e]">
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-semibold text-slate-900">{m.title}</h4>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${m.status === 'Completed' ? 'bg-[#c9e8d5] text-[#1b7850]' : m.status === 'Overdue' ? 'bg-red-100 text-red-700' : 'bg-[#eef9ff] text-[#0f699e]'}`}>
+                      {m.status}
+                    </span>
+                  </div>
+                  {m.description && <p className="text-sm text-slate-600 mb-2">{m.description}</p>}
+                  <div className="flex justify-between items-end">
+                    <div className="flex gap-4 text-xs text-slate-500">
+                      <div><span className="font-medium">Deadline:</span> {new Date(m.deadline).toLocaleDateString()}</div>
+                      {m.amount && <div><span className="font-medium">Amount:</span> ${m.amount}</div>}
+                      {m.is_critical_path ? <div className="text-amber-600 font-semibold">Critical Path</div> : null}
+                    </div>
+                    {isSeller && m.status !== 'Completed' && (
+                      <button
+                        onClick={() => handleCompleteMilestone(m.milestone_id)}
+                        className="brand-button-primary rounded-md px-3 py-1 text-xs font-semibold transition"
+                      >
+                        Complete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-slate-500">No milestones have been created for this order.</p>
+            )}
+
+            {isSeller && ['Pending', 'In Progress'].includes(order.status) && (
+              <div className="mt-4">
+                {!showMilestoneForm ? (
+                  <button
+                    type="button"
+                    onClick={() => { resetFeedback(); setShowMilestoneForm(true); }}
+                    className="brand-button-neutral w-full rounded-md px-4 py-2 text-sm font-semibold transition"
+                  >
+                    + Create Milestone
+                  </button>
+                ) : (
+                  <form onSubmit={handleCreateMilestone} className="brand-surface p-4 space-y-3 mt-2">
+                    <h4 className="font-bold text-slate-800 mb-2">New Milestone</h4>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">Title</label>
+                      <input type="text" required value={milestoneTitle} onChange={e=>setMilestoneTitle(e.target.value)} className="brand-input" placeholder="Phase 1 Delivery" />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">Description</label>
+                      <textarea rows="2" value={milestoneDesc} onChange={e=>setMilestoneDesc(e.target.value)} className="brand-input" placeholder="Details of this phase..."></textarea>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-700">Deadline</label>
+                        <input type="date" required value={milestoneDeadline} onChange={e=>setMilestoneDeadline(e.target.value)} className="brand-input" />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-slate-700">Amount ($)</label>
+                        <input type="number" step="0.01" value={milestoneAmount} onChange={e=>setMilestoneAmount(e.target.value)} className="brand-input" placeholder="Optional" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <input type="checkbox" id="criticalBox" checked={milestoneCritical} onChange={e=>setMilestoneCritical(e.target.checked)} className="h-4 w-4 rounded border-gray-300" />
+                      <label htmlFor="criticalBox" className="text-sm text-slate-700">Is Critical Path (Blocks completion)</label>
+                    </div>
+                    <div className="flex gap-3 mt-4">
+                      <button type="submit" disabled={milestoneSubmitting} className="brand-button-primary flex-1 rounded-md px-4 py-2 text-sm font-semibold transition">
+                        {milestoneSubmitting ? 'Saving...' : 'Save Milestone'}
+                      </button>
+                      <button type="button" onClick={() => setShowMilestoneForm(false)} className="brand-button-neutral rounded-md px-4 py-2 text-sm font-semibold transition">
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* ── Dispute Section ── */}
           {isParticipant && (

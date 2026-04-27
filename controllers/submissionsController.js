@@ -44,9 +44,10 @@ exports.create = async (req, res) => {
     const isRevision = toBoolean(is_revision);
 
     const [orders] = await pool.query(
-      `SELECT order_id, buyer_id, seller_id, status
-       FROM Orders
-       WHERE order_id = ?`,
+      `SELECT o.order_id, o.buyer_id, o.seller_id, o.status, o.revision_number, g.revision_limit
+       FROM Orders o
+       JOIN Gigs g ON o.gig_id = g.gig_id
+       WHERE o.order_id = ?`,
       [order_id]
     );
 
@@ -70,6 +71,10 @@ exports.create = async (req, res) => {
 
       if (order.status !== 'Delivered') {
         return res.status(400).json({ error: 'Revisions can only be requested after delivery' });
+      }
+
+      if (order.revision_number >= order.revision_limit) {
+        return res.status(400).json({ error: `Revision limit reached (${order.revision_limit}).` });
       }
 
       if (!normalizedMessage) {

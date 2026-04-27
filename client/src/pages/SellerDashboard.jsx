@@ -17,6 +17,24 @@ export default function SellerDashboard() {
   const [price, setPrice] = useState('');
   const [deliveryDays, setDeliveryDays] = useState('');
   const [revisionLimit, setRevisionLimit] = useState(1);
+  const [availableTags, setAvailableTags] = useState([]);
+  const [tags, setTags] = useState([]);
+
+  
+  useEffect(() => {
+    const fetchSystemTags = async () => {
+      try {
+        const res = await fetch('http://localhost:3000/api/tags');
+        if (res.ok) {
+          const data = await res.json();
+          setAvailableTags(data);
+        }
+      } catch (err) {
+        console.error("Error fetching tags", err);
+      }
+    };
+    fetchSystemTags();
+  }, []);
 
   // Fetch Seller's Gigs
   useEffect(() => {
@@ -62,7 +80,18 @@ export default function SellerDashboard() {
       }
 
       const resData = await response.json();
-      const newGig = { gig_id: resData.gig_id || resData.insertId, ...gigData, is_active: 1 };
+      const newGigId = resData.gig_id || resData.insertId;
+      const newGig = { gig_id: newGigId, ...gigData, is_active: 1 };
+      
+      if (tags.length > 0) {
+        await Promise.all(tags.map(tag => 
+          fetch(`http://localhost:3000/api/gigs/${newGigId}/tags`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: tag }) // Backend resolves by name currently, or we pass tag if it expects name
+          })
+        ));
+      }
       
       setGigs([newGig, ...gigs]);
       setShowForm(false);
@@ -71,6 +100,7 @@ export default function SellerDashboard() {
       setDescription('');
       setPrice('');
       setDeliveryDays('');
+      setTags('');
       
     } catch (err) {
       alert(err.message);
@@ -127,6 +157,30 @@ export default function SellerDashboard() {
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Revision Limit</label>
                 <input required type="number" min="0" value={revisionLimit} onChange={e=>setRevisionLimit(e.target.value)} className="brand-input" placeholder="1" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-sm font-medium text-slate-700">Select Tags</label>
+                <div className="flex flex-wrap gap-3 mt-2">
+                  {availableTags.length === 0 ? (
+                    <p className="text-sm text-slate-500">No tags available (Admins can add tags).</p>
+                  ) : (
+                    availableTags.map((tag) => (
+                      <label key={tag.tag_id} className="flex items-center gap-2 text-sm text-slate-700 bg-white border border-slate-200 px-3 py-1.5 rounded-full cursor-pointer hover:bg-slate-50">
+                        <input 
+                          type="checkbox" 
+                          value={tag.name}
+                          checked={tags.includes(tag.name)}
+                          onChange={(e) => {
+                            if (e.target.checked) setTags([...tags, tag.name]);
+                            else setTags(tags.filter(t => t !== tag.name));
+                          }}
+                          className="h-4 w-4 rounded border-slate-300 text-[#0f699e] focus:ring-[#0f699e]"
+                        />
+                        {tag.name}
+                      </label>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
             <div className="pt-4 flex justify-end">

@@ -1,5 +1,15 @@
 const pool = require('../db');
 
+// Fire-and-forget notification helper
+async function notify(userId, type, title, body) {
+  try {
+    await pool.query(
+      'INSERT INTO Notifications (user_id, type, title, body) OUTPUT INSERTED.notification_id VALUES (?, ?, ?, ?)',
+      [userId, type, title, body || null]
+    );
+  } catch (_) {}
+}
+
 // GET all invoices
 exports.getAll = async (req, res) => {
   try {
@@ -58,6 +68,16 @@ exports.create = async (req, res) => {
       'INSERT INTO Invoices (order_id, milestone_id, amount, due_date) OUTPUT INSERTED.invoice_id VALUES (?, ?, ?, ?)',
       [order_id, milestone_id || null, amount, due_date]
     );
+
+    // Notify buyer
+    const [orderRows] = await pool.query(
+      'SELECT o.buyer_id, g.title FROM Orders o JOIN Gigs g ON o.gig_id = g.gig_id WHERE o.order_id = ?',
+      [order_id]
+    );
+    if (orderRows.length > 0) {
+      notify(orderRows[0].buyer_id, 'Payment', 'Invoice Issued', `A new invoice for $${amount} has been issued for Order #${order_id} ("${orderRows[0].title}").`);
+    }
+
     res.status(201).json({ message: 'Invoice created', invoice_id: result.insertId });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -89,6 +109,23 @@ exports.markPaid = async (req, res) => {
       [req.params.id]
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Invoice not found' });
+
+    // Notify seller
+    const [invRows] = await pool.query(
+      `SELECT i.order_id, i.amount, g.title 
+       FROM Invoices i 
+       JOIN Orders o ON i.order_id = o.order_id
+       JOIN Gigs g ON o.gig_id = g.gig_id
+       WHERE i.invoice_id = ?`,
+      [req.params.id]
+    );
+    if (invRows.length > 0) {
+      const [orderRows] = await pool.query('SELECT seller_id FROM Orders WHERE order_id = ?', [invRows[0].order_id]);
+      if (orderRows.length > 0) {
+        notify(orderRows[0].seller_id, 'Payment', 'Invoice Paid', `The invoice for $${invRows[0].amount} for Order #${invRows[0].order_id} ("${invRows[0].title}") has been paid.`);
+      }
+    }
+
     res.json({ message: 'Invoice marked as paid' });
   } catch (err) {
     res.status(500).json({ error: err.message });

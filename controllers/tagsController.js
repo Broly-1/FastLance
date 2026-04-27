@@ -25,6 +25,12 @@ exports.getById = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const { name } = req.body;
+    const userRole = req.headers['x-user-role'];
+
+    if (userRole !== 'Admin') {
+      return res.status(403).json({ error: 'Only admins can create tags' });
+    }
+
     if (!name) return res.status(400).json({ error: 'Tag name is required' });
 
     const [result] = await pool.query(
@@ -44,6 +50,12 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const { name } = req.body;
+    const userRole = req.headers['x-user-role'];
+
+    if (userRole !== 'Admin') {
+      return res.status(403).json({ error: 'Only admins can update tags' });
+    }
+
     if (!name) return res.status(400).json({ error: 'Tag name is required' });
 
     const [result] = await pool.query(
@@ -63,6 +75,12 @@ exports.update = async (req, res) => {
 // DELETE tag
 exports.remove = async (req, res) => {
   try {
+    const userRole = req.headers['x-user-role'];
+
+    if (userRole !== 'Admin') {
+      return res.status(403).json({ error: 'Only admins can delete tags' });
+    }
+
     const [result] = await pool.query('DELETE FROM Tags WHERE tag_id = ?', [req.params.id]);
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Tag not found' });
     res.json({ message: 'Tag deleted' });

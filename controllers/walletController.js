@@ -49,13 +49,21 @@ exports.create = async (req, res) => {
         'INSERT INTO Wallet_Transactions (user_id, order_id, amount, type, description) OUTPUT INSERTED.txn_id VALUES (?, ?, ?, ?, ?)',
         [user_id, order_id || null, amount, type, description || null]
       );
-      // Update user wallet balance
+      // Update user wallet balance (with check for negative balance if withdrawal)
+      if (amount < 0) {
+        const [userRows] = await conn.query('SELECT wallet_balance FROM Users WHERE user_id = ?', [user_id]);
+        if (userRows.length > 0 && Number(userRows[0].wallet_balance) + Number(amount) < 0) {
+          await conn.rollback();
+          return res.status(400).json({ error: 'Insufficient wallet balance for this withdrawal.' });
+        }
+      }
+
       await conn.query(
         'UPDATE Users SET wallet_balance = wallet_balance + ? WHERE user_id = ?',
         [amount, user_id]
       );
       await conn.commit();
-      notify(user_id, 'Payment', 'Wallet Transaction', `You received a ${type} of $${amount}.`);
+      notify(user_id, 'Payment', 'Wallet Transaction', `A transaction of $${amount} (${type}) has been processed.`);
       res.status(201).json({ message: 'Transaction recorded', txn_id: result.insertId });
     } catch (err) {
       await conn.rollback();

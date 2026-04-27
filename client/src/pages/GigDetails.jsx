@@ -182,6 +182,15 @@ export default function GigDetails() {
             <div className="brand-surface p-6">
               <h2 className="mb-4 text-2xl font-bold text-slate-900">About This Gig</h2>
               <div className="max-w-none whitespace-pre-line text-slate-700">{gig.description}</div>
+              {gig.tags && gig.tags.length > 0 && (
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {gig.tags.map((tag) => (
+                    <span key={tag.tag_id} className="rounded-full bg-[#f1f5f9] px-3 py-1 text-sm font-medium text-slate-700">
+                      {tag.name}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="brand-surface p-6">

@@ -63,7 +63,9 @@ exports.create = async (req, res) => {
       'INSERT INTO Messages (sender_id, receiver_id, order_id, content, message_type) OUTPUT INSERTED.message_id VALUES (?, ?, ?, ?, ?)',
       [sender_id, receiver_id, order_id || null, content, message_type || 'Text']
     );
-    notify(receiver_id, 'Message', 'New Message Received', `You have a new message from user #${sender_id}.`);
+    const [senderRows] = await pool.query('SELECT username FROM Users WHERE user_id = ?', [sender_id]);
+    const senderName = senderRows.length > 0 ? senderRows[0].username : `user #${sender_id}`;
+    notify(receiver_id, 'Message', 'New Message Received', `You have a new message from ${senderName}.`);
     res.status(201).json({ message: 'Message sent', message_id: result.insertId });
   } catch (err) {
     res.status(500).json({ error: err.message });

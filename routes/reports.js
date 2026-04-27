@@ -14,4 +14,6 @@ router.get('/overdue-milestones', ctrl.overdueMilestones);
 router.get('/platform-summary', ctrl.platformSummary);
 router.get('/user-feedback/:id', ctrl.userFeedback);
 
+router.get("/export", ctrl.exportAnalytics);
+
 module.exports = router;

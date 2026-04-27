@@ -1,5 +1,15 @@
 const pool = require('../db');
 
+// Fire-and-forget notification helper
+async function notify(userId, type, title, body) {
+  try {
+    await pool.query(
+      'INSERT INTO Notifications (user_id, type, title, body) OUTPUT INSERTED.notification_id VALUES (?, ?, ?, ?)',
+      [userId, type, title, body || null]
+    );
+  } catch (_) {}
+}
+
 // GET milestones by order
 exports.getByOrder = async (req, res) => {
   try {
@@ -32,6 +42,16 @@ exports.create = async (req, res) => {
       'INSERT INTO Milestones (order_id, title, description, deadline, amount, is_critical_path) OUTPUT INSERTED.milestone_id VALUES (?, ?, ?, ?, ?, ?)',
       [order_id, title, description || null, deadline, amount || null, is_critical_path ? 1 : 0]
     );
+
+    // Notify buyer that a milestone was created
+    const [orderRows] = await pool.query(
+      'SELECT o.buyer_id, g.title FROM Orders o JOIN Gigs g ON o.gig_id = g.gig_id WHERE o.order_id = ?',
+      [order_id]
+    );
+    if (orderRows.length > 0) {
+      notify(orderRows[0].buyer_id, 'Order', 'Milestone Created', `A new milestone "${title}" has been added to Order #${order_id} ("${orderRows[0].title}").`);
+    }
+
     res.status(201).json({ message: 'Milestone created', milestone_id: result.insertId });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -42,6 +62,12 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const { title, description, deadline, amount, status, is_critical_path, completed_at } = req.body;
+    
+    // Fetch old status to check for completion
+    const [oldRows] = await pool.query('SELECT order_id, title, status FROM Milestones WHERE milestone_id = ?', [req.params.id]);
+    if (oldRows.length === 0) return res.status(404).json({ error: 'Milestone not found' });
+    const oldMilestone = oldRows[0];
+
     const [result] = await pool.query(
       `UPDATE Milestones SET title = COALESCE(?, title), description = COALESCE(?, description),
        deadline = COALESCE(?, deadline), amount = COALESCE(?, amount),
@@ -50,7 +76,21 @@ exports.update = async (req, res) => {
        WHERE milestone_id = ?`,
       [title, description, deadline, amount, status, is_critical_path, completed_at, req.params.id]
     );
+
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Milestone not found' });
+
+    // Notify if status changed to Completed
+    if (status === 'Completed' && oldMilestone.status !== 'Completed') {
+        const [orderRows] = await pool.query(
+          'SELECT o.buyer_id, o.seller_id, g.title FROM Orders o JOIN Gigs g ON o.gig_id = g.gig_id WHERE o.order_id = ?',
+          [oldMilestone.order_id]
+        );
+        if (orderRows.length > 0) {
+            notify(orderRows[0].buyer_id, 'Order', 'Milestone Completed', `The milestone "${oldMilestone.title}" for "${orderRows[0].title}" has been marked as completed.`);
+            notify(orderRows[0].seller_id, 'Order', 'Milestone Completed', `You have completed the milestone "${oldMilestone.title}" for "${orderRows[0].title}".`);
+        }
+    }
+
     res.json({ message: 'Milestone updated' });
   } catch (err) {
     res.status(500).json({ error: err.message });

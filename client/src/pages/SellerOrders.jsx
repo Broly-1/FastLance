@@ -154,6 +154,12 @@ export default function SellerOrders() {
                           View Order
                         </Link>
                       )}
+                      <Link
+                        to={`/messages?with=${order.buyer_id}&name=${encodeURIComponent(order.buyer_name)}&orderId=${order.order_id}`}
+                        className="brand-button-neutral inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold transition"
+                      >
+                        Message
+                      </Link>
                     </div>
                   </td>
                 </tr>

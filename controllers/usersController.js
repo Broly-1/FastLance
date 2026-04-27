@@ -1,8 +1,12 @@
 const pool = require('../db');
 
-// GET all users
+// GET all users (Admin only)
 exports.getAll = async (req, res) => {
   try {
+    const userRole = req.headers['x-user-role'];
+    if (userRole !== 'Admin') {
+      return res.status(403).json({ error: 'Only admins can list all users' });
+    }
     const [rows] = await pool.query(
       'SELECT user_id, username, email, role, bio, profile_pic_url, wallet_balance, is_active, created_at, updated_at FROM Users'
     );
@@ -29,11 +33,11 @@ exports.getById = async (req, res) => {
 // POST create user
 exports.create = async (req, res) => {
   try {
-    const { username, email, password_hash, password, role, bio, profile_pic_url } = req.body;
-    const pwHash = password_hash || password;
+    const { username, email, password, role, bio, profile_pic_url } = req.body;
+    
     const [result] = await pool.query(
-      'INSERT INTO Users (username, email, password_hash, role, bio, profile_pic_url) OUTPUT INSERTED.user_id VALUES (?, ?, ?, ?, ?, ?)',
-      [username, email, pwHash, role || 'Buyer', bio || null, profile_pic_url || null]
+      'INSERT INTO Users (username, email, password_hash, role, bio, profile_pic_url) VALUES (?, ?, ?, ?, ?, ?)',
+      [username, email, password, role || 'Buyer', bio || null, profile_pic_url || null]
     );
     res.status(201).json({ message: 'User created', user_id: result.insertId });
   } catch (err) {
@@ -61,7 +65,6 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
     
-    // Very basic check without bcrypt (assuming plain text for now as per create user logic)
     const [rows] = await pool.query(
       'SELECT user_id, username, email, role, is_active FROM Users WHERE email = ? AND password_hash = ?',
       [email, password]

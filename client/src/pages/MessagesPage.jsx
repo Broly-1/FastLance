@@ -67,6 +67,18 @@ function ThreadItem({ thread, isActive, currentUserId, onClick }) {
 // ─── Chat Bubble ──────────────────────────────────────────────────────────────
 
 function ChatBubble({ msg, isOwn }) {
+  if (msg.message_type === 'System') {
+    return (
+      <div className="flex justify-center my-4">
+        <div className="bg-slate-100 text-slate-500 text-[11px] font-medium px-3 py-1 rounded-full border border-slate-200 uppercase tracking-wider">
+          {msg.content}
+        </div>
+      </div>
+    );
+  }
+
+  const isFile = msg.message_type === 'File';
+
   return (
     <div className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
       {!isOwn && <Avatar name={msg.sender_name} size="sm" />}
@@ -76,7 +88,18 @@ function ChatBubble({ msg, isOwn }) {
             : 'rounded-bl-sm border border-[#d4e7f3] bg-white/90 text-slate-800'
           }`}
       >
-        <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+        {isFile ? (
+          <div className="flex items-center gap-2 py-1">
+            <svg className={`h-5 w-5 ${isOwn ? 'text-sky-100' : 'text-[#2da8ed]'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <a href={msg.content} target="_blank" rel="noopener noreferrer" className={`font-semibold underline break-all ${isOwn ? 'text-white' : 'text-[#0f699e]'}`}>
+              {msg.content.split('/').pop() || 'Attachment'}
+            </a>
+          </div>
+        ) : (
+          <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+        )}
         <p
           className={`mt-1 text-right text-[10px] ${isOwn ? 'text-sky-100' : 'text-slate-400'
             }`}
@@ -111,6 +134,7 @@ export default function MessagesPage() {
   // Active conversation
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [selectedUserName, setSelectedUserName] = useState('');
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [convLoading, setConvLoading] = useState(false);
 
@@ -145,6 +169,8 @@ export default function MessagesPage() {
   useEffect(() => {
     const withId = searchParams.get('with');
     const withName = searchParams.get('name');
+    const orderId = searchParams.get('orderId');
+
     if (withId && threads !== null) {
       // Try to get the name from inbox first, otherwise use query param name
       const existingThread = threads.find(
@@ -156,11 +182,11 @@ export default function MessagesPage() {
           existingThread.sender_id === user?.id
             ? existingThread.receiver_name
             : existingThread.sender_name;
-        selectConversation(Number(withId), name);
+        selectConversation(Number(withId), name, orderId);
       } else if (withName) {
-        selectConversation(Number(withId), withName);
+        selectConversation(Number(withId), withName, orderId);
       } else {
-        selectConversation(Number(withId), `User #${withId}`);
+        selectConversation(Number(withId), `User #${withId}`, orderId);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -187,9 +213,10 @@ export default function MessagesPage() {
     [user?.id]
   );
 
-  function selectConversation(otherId, otherName) {
+  function selectConversation(otherId, otherName, orderId = null) {
     setSelectedUserId(otherId);
     setSelectedUserName(otherName);
+    setSelectedOrderId(orderId);
     setSendError(null);
     setDraft('');
     loadConversation(otherId);
@@ -232,6 +259,7 @@ export default function MessagesPage() {
         body: JSON.stringify({
           sender_id: user.id,
           receiver_id: selectedUserId,
+          order_id: selectedOrderId ? Number(selectedOrderId) : null,
           content,
           message_type: 'Text',
         }),
@@ -331,12 +359,19 @@ export default function MessagesPage() {
         ) : (
           <>
             {/* Conversation header */}
-            <div className="brand-hero flex items-center gap-3 rounded-b-none rounded-t-2xl px-5 py-3.5">
-              <Avatar name={selectedUserName} />
-              <div>
-                <p className="font-semibold text-slate-900">{selectedUserName}</p>
-                <p className="text-xs text-slate-500">Direct message</p>
+            <div className="brand-hero flex items-center justify-between rounded-b-none rounded-t-2xl px-5 py-3.5">
+              <div className="flex items-center gap-3">
+                <Avatar name={selectedUserName} />
+                <div>
+                  <p className="font-semibold text-slate-900">{selectedUserName}</p>
+                  <p className="text-xs text-slate-500">Direct message</p>
+                </div>
               </div>
+              {selectedOrderId && (
+                <div className="bg-[#def4ff] text-[#0f699e] text-[10px] font-bold px-2 py-1 rounded border border-[#c4ebff]">
+                  ORDER #{selectedOrderId}
+                </div>
+              )}
             </div>
 
             {/* Messages area */}

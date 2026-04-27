@@ -180,13 +180,13 @@ exports.revenueByMonth = async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT
-         YEAR(paid_at) AS year,
-         MONTH(paid_at) AS month,
+         YEAR(updated_at) AS year,
+         MONTH(updated_at) AS month,
          COUNT(*) AS invoices_paid,
-         SUM(amount) AS total_revenue
-       FROM Invoices
-       WHERE status = 'Paid' AND paid_at IS NOT NULL
-       GROUP BY YEAR(paid_at), MONTH(paid_at)
+         SUM(total_price) AS total_revenue
+       FROM Orders
+       WHERE status = 'Completed'
+       GROUP BY YEAR(updated_at), MONTH(updated_at)
        ORDER BY year DESC, month DESC`
     );
     res.json(rows);
@@ -226,7 +226,7 @@ exports.platformSummary = async (req, res) => {
                 SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) AS completed_orders
          FROM Orders`
       ),
-      pool.query("SELECT COALESCE(SUM(amount), 0) AS total_revenue FROM Invoices WHERE status = 'Paid'"),
+      pool.query("SELECT COALESCE(SUM(total_price), 0) AS total_revenue FROM Orders WHERE status = 'Completed'"),
       pool.query('SELECT ROUND(AVG(rating), 2) AS platform_avg_rating FROM Reviews'),
     ]);
     res.json({
@@ -257,6 +257,21 @@ exports.userFeedback = async (req, res) => {
       [req.params.id]
     );
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Admin Export Data
+exports.exportAnalytics = async (req, res) => {
+  try {
+        const [users] = await pool.query("SELECT user_id, username, email, role, created_at, wallet_balance, is_active FROM Users");
+        const [gigs] = await pool.query("SELECT gig_id, seller_id, title, category, price, created_at, is_active FROM Gigs");
+        const [orders] = await pool.query("SELECT order_id, buyer_id, gig_id, total_price as amount, status, order_date FROM Orders");
+    
+    // If only one row returned by pool.query, actually we need the whole array
+    // pool.query returns [rows, fields]
+    res.json({ users, gigs, orders });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

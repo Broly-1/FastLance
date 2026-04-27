@@ -90,12 +90,20 @@ export default function BuyerOrders() {
                     {new Date(order.created_at || order.order_date).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <Link
-                      to={`/orders/${order.order_id}`}
-                      className="brand-button-neutral inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold transition"
-                    >
-                      View Details
-                    </Link>
+                    <div className="flex gap-2">
+                      <Link
+                        to={`/orders/${order.order_id}`}
+                        className="brand-button-neutral inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold transition"
+                      >
+                        View Details
+                      </Link>
+                      <Link
+                        to={`/messages?with=${order.seller_id}&name=${encodeURIComponent(order.seller_name)}&orderId=${order.order_id}`}
+                        className="brand-button-primary inline-flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold transition"
+                      >
+                        Message
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

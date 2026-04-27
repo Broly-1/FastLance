@@ -171,3 +171,20 @@ exports.remove = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// GET all platform reviews for admin
+exports.getAllForAdmin = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT r.*, u.username as reviewer_name, g.title as gig_title 
+       FROM Reviews r 
+       JOIN Users u ON r.reviewer_id = u.user_id 
+       JOIN Orders o ON r.order_id = o.order_id 
+       JOIN Gigs g ON o.gig_id = g.gig_id 
+       ORDER BY r.created_at DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

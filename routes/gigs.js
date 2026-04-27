@@ -12,4 +12,6 @@ router.delete('/:id', ctrl.remove);
 router.post('/:id/images', ctrl.addImage);
 router.post('/:id/tags', ctrl.addTag);
 
+router.get("/admin/all", ctrl.getAdminAll);
+
 module.exports = router;

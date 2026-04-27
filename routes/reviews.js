@@ -7,4 +7,6 @@ router.post('/', ctrl.create);
 router.put('/:id', ctrl.update);
 router.delete('/:id', ctrl.remove);
 
+router.get("/admin/all", ctrl.getAllForAdmin);
+
 module.exports = router;

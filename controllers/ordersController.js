@@ -118,8 +118,8 @@ exports.create = async (req, res) => {
       return res.status(400).json({ error: 'gig_id and buyer_id are required' });
     }
 
-    // Fetch gig to get seller_id, price, delivery_days
-    const [gigs] = await pool.query('SELECT seller_id, price, delivery_days FROM Gigs WHERE gig_id = ?', [gig_id]);
+    // Fetch gig to get seller_id, price, delivery_days, title
+    const [gigs] = await pool.query('SELECT seller_id, price, delivery_days, title FROM Gigs WHERE gig_id = ?', [gig_id]);
     if (gigs.length === 0) return res.status(404).json({ error: 'Gig not found' });
 
     const gig = gigs[0];
@@ -190,8 +190,10 @@ exports.updateStatus = async (req, res) => {
     }
 
     const [rows] = await pool.query(
-      `SELECT o.order_id, o.status, o.total_price, o.buyer_id, o.seller_id
-       FROM Orders o WHERE o.order_id = ?`,
+      `SELECT o.order_id, o.status, o.total_price, o.buyer_id, o.seller_id, g.title AS gig_title
+       FROM Orders o 
+       JOIN Gigs g ON o.gig_id = g.gig_id
+       WHERE o.order_id = ?`,
       [req.params.id]
     );
 
@@ -202,10 +204,30 @@ exports.updateStatus = async (req, res) => {
     const order = rows[0];
     const currentStatus = order.status;
 
+    // FEATURE D: Lock Disputed orders
+    if (currentStatus === 'Disputed' && status !== 'Disputed') {
+      return res.status(400).json({
+        error: 'This order is currently under dispute. Standard status transitions are locked until the dispute is resolved by an admin.',
+      });
+    }
+
     if (!isAllowedStatusTransition(currentStatus, status)) {
       return res.status(400).json({
         error: `Invalid status transition from ${currentStatus} to ${status}`,
       });
+    }
+
+    // FEATURE B: Enforce critical milestones
+    if (status === 'Completed') {
+      const [criticalRows] = await pool.query(
+        "SELECT COUNT(*) AS incomplete_count FROM Milestones WHERE order_id = ? AND is_critical_path = 1 AND status != 'Completed'",
+        [req.params.id]
+      );
+      if (criticalRows[0].incomplete_count > 0) {
+        return res.status(400).json({
+          error: `Cannot complete order. There are ${criticalRows[0].incomplete_count} incomplete critical milestones that must be finished first.`,
+        });
+      }
     }
 
     const amount = Number(order.total_price);
@@ -228,8 +250,8 @@ exports.updateStatus = async (req, res) => {
           [amount, order.seller_id]
         );
         await conn.commit();
-        notify(order.buyer_id, 'Order', 'Order Completed', `Order #${order.order_id} has been completed. Thank you!`);
-        notify(order.seller_id, 'Order', 'Order Completed', `Order #${order.order_id} is complete — your earnings have been credited.`);
+        notify(order.buyer_id, 'Order', 'Order Completed', `Order #${order.order_id} ("${order.gig_title}") has been completed. Thank you!`);
+        notify(order.seller_id, 'Order', 'Order Completed', `Order #${order.order_id} ("${order.gig_title}") is complete — your earnings have been credited.`);
         return res.json({ message: 'Order status updated', status });
 
       } catch (err) {

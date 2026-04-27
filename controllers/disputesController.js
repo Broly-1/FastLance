@@ -55,11 +55,14 @@ exports.create = async (req, res) => {
     await pool.query("UPDATE Orders SET status = 'Disputed' WHERE order_id = ?", [order_id]);
 
     // Notify the other party
-    const [orderRows] = await pool.query('SELECT buyer_id, seller_id FROM Orders WHERE order_id = ?', [order_id]);
+    const [orderRows] = await pool.query(
+      'SELECT o.buyer_id, o.seller_id, g.title FROM Orders o JOIN Gigs g ON o.gig_id = g.gig_id WHERE o.order_id = ?',
+      [order_id]
+    );
     if (orderRows.length > 0) {
       const o = orderRows[0];
       const otherId = Number(raised_by) === Number(o.buyer_id) ? o.seller_id : o.buyer_id;
-      notify(otherId, 'Dispute', 'Dispute Opened', `A dispute has been raised on Order #${order_id}. An admin will review it.`);
+      notify(otherId, 'Dispute', 'Dispute Opened', `A dispute has been raised on Order #${order_id} ("${o.title}"). An admin will review it.`);
     }
     res.status(201).json({ message: 'Dispute opened', dispute_id: result.insertId });
   } catch (err) {
@@ -71,6 +74,12 @@ exports.create = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const { status, resolution, order_action } = req.body;
+    const userRole = req.headers['x-user-role'];
+
+    if (userRole !== 'Admin') {
+      return res.status(403).json({ error: 'Only admins can resolve disputes' });
+    }
+
     const resolved_at = status === 'Resolved' ? new Date() : null;
 
     // Fetch the dispute's linked order

@@ -12,6 +12,8 @@ export default function AdminDashboard() {
   const [users, setUsers]           = useState([]);
   const [orders, setOrders]         = useState([]);
   const [tags, setTags]             = useState([]);
+  const [gigs, setGigs]             = useState([]);
+  const [reviews, setReviews]       = useState([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState('');
 
@@ -27,15 +29,17 @@ export default function AdminDashboard() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [summaryRes, sellersRes, disputesRes, usersRes, ordersRes, tagsRes] = await Promise.all([
+      const [summaryRes, sellersRes, disputesRes, usersRes, ordersRes, tagsRes, gigsRes, reviewsRes] = await Promise.all([
         fetch(`${API}/api/reports/platform-summary`),
         fetch(`${API}/api/reports/top-sellers`),
         fetch(`${API}/api/disputes`),
         fetch(`${API}/api/users`),
         fetch(`${API}/api/orders`),
-        fetch(`${API}/api/tags`)
+        fetch(`${API}/api/tags`),
+        fetch(`${API}/api/gigs/admin/all`),
+        fetch(`${API}/api/reviews/admin/all`)
       ]);
-      if (!summaryRes.ok || !sellersRes.ok || !disputesRes.ok || !usersRes.ok || !ordersRes.ok || !tagsRes.ok)
+      if (!summaryRes.ok || !sellersRes.ok || !disputesRes.ok || !usersRes.ok || !ordersRes.ok || !tagsRes.ok || !gigsRes.ok || !reviewsRes.ok)
         throw new Error('Failed to fetch dashboard data.');
       setSummary(await summaryRes.json());
       setTopSellers(await sellersRes.json());
@@ -43,6 +47,8 @@ export default function AdminDashboard() {
       setUsers(await usersRes.json());
       setOrders(await ordersRes.json());
       setTags(await tagsRes.json());
+      setGigs(await gigsRes.json());
+      setReviews(await reviewsRes.json());
     } catch (err) {
       setError(err.message);
     } finally {
@@ -142,7 +148,10 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`${API}/api/tags`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-role': user.role 
+        },
         body: JSON.stringify({ name: name.trim() })
       });
       if (!res.ok) {
@@ -158,11 +167,65 @@ export default function AdminDashboard() {
   const handleDeleteTag = async (tagId, tagName) => {
     if (!window.confirm(`Permanently delete tag "${tagName}"? This may fail if it is attached to gigs.`)) return;
     try {
-      const res = await fetch(`${API}/api/tags/${tagId}`, { method: 'DELETE' });
+      const res = await fetch(`${API}/api/tags/${tagId}`, { 
+        method: 'DELETE',
+        headers: { 'x-user-role': user.role }
+      });
       if (!res.ok) {
         const d = await res.json();
         throw new Error(d.error || 'Failed to delete tag.');
       }
+      await fetchAll();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleExportCSV = async () => {
+    try {
+      const res = await fetch(`${API}/api/reports/export`);
+      if (!res.ok) throw new Error('Failed to fetch export data.');
+      const data = await res.json();
+      
+      if (!data || data.length === 0) {
+        alert('No data to export');
+        return;
+      }
+      
+      const headers = Object.keys(data[0]).join(',');
+      const rows = data.map(item => Object.values(item).map(val => typeof val === 'string' ? `"${val.replace(/"/g, '""')}"` : val).join(','));
+      const csv = [headers, ...rows].join('\n');
+      
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.setAttribute('hidden', '');
+      a.setAttribute('href', url);
+      a.setAttribute('download', 'export.csv');
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteGig = async (gigId, title) => {
+    if (!window.confirm(`Permanently delete gig "${title}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`${API}/api/gigs/${gigId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete gig.');
+      await fetchAll();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId) => {
+    if (!window.confirm(`Permanently delete this review? This cannot be undone.`)) return;
+    try {
+      const res = await fetch(`${API}/api/reviews/${reviewId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete review.');
       await fetchAll();
     } catch (err) {
       alert(err.message);
@@ -191,9 +254,11 @@ export default function AdminDashboard() {
   const TABS = [
     { id: 'overview',  label: '📊 Overview' },
     { id: 'users',     label: `👥 Users (${users.length})` },
+    { id: 'gigs',      label: `💼 Gigs (${gigs.length})` },
     { id: 'orders',    label: `📦 Orders (${orders.length})` },
     { id: 'disputes',  label: `⚠️ Disputes${openDisputes.length ? ` (${openDisputes.length})` : ''}` },
     { id: 'tags',      label: `🏷️ Tags (${tags.length})` },
+    { id: 'reviews',   label: `⭐ Reviews (${reviews.length})` },
   ];
 
   return (
@@ -227,6 +292,14 @@ export default function AdminDashboard() {
       {/* ── OVERVIEW ── */}
       {tab === 'overview' && (
         <>
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={handleExportCSV}
+              className="brand-button-primary rounded-lg px-4 py-2 text-sm font-semibold transition"
+            >
+              📥 Export Data to CSV
+            </button>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
             <StatCard label="Total Users"      value={summary?.total_users ?? 0}                                     icon="👥" />
             <StatCard label="Total Gigs"       value={summary?.total_gigs ?? 0}                                      icon="💼" />
@@ -337,6 +410,61 @@ export default function AdminDashboard() {
                     </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── GIGS ── */}
+      {tab === 'gigs' && (
+        <div className="brand-surface overflow-hidden">
+          <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-line)' }}>
+            <h3 className="brand-page-title text-lg font-bold">All Gigs</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-xs uppercase tracking-wide border-b" style={{ borderColor: 'var(--brand-line)', color: 'var(--brand-muted)' }}>
+                  <th className="px-6 py-4 font-semibold">Title</th>
+                  <th className="px-6 py-4 font-semibold">Seller</th>
+                  <th className="px-6 py-4 font-semibold">Price</th>
+                  <th className="px-6 py-4 font-semibold">Status</th>
+                  <th className="px-6 py-4 font-semibold">Created</th>
+                  <th className="px-6 py-4 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y" style={{ borderColor: 'var(--brand-line)' }}>
+                {gigs.map((g) => (
+                  <tr key={g.gig_id} className="transition-colors hover:bg-[#f1fbff]">
+                    <td className="px-6 py-4">
+                      <p className="font-semibold text-sm max-w-[250px] truncate" style={{ color: 'var(--brand-ink)' }}>{g.title}</p>
+                    </td>
+                    <td className="px-6 py-4 text-sm" style={{ color: 'var(--brand-ink)' }}>{g.seller_name}</td>
+                    <td className="px-6 py-4 text-sm font-medium" style={{ color: 'var(--brand-ink)' }}>
+                      ${Number(g.price).toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4">
+                      {g.is_active
+                        ? <span className="brand-status brand-status-completed">Active</span>
+                        : <span className="brand-status brand-status-cancelled">Inactive</span>}
+                    </td>
+                    <td className="px-6 py-4 text-sm" style={{ color: 'var(--brand-muted)' }}>
+                      {new Date(g.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleDeleteGig(g.gig_id, g.title)}
+                        className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {gigs.length === 0 && (
+                  <tr><td colSpan="6" className="px-6 py-16 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>No gigs found.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -536,6 +664,61 @@ export default function AdminDashboard() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── REVIEWS ── */}
+      {tab === 'reviews' && (
+        <div className="brand-surface overflow-hidden">
+          <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-line)' }}>
+            <h3 className="brand-page-title text-lg font-bold">All Reviews</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-xs uppercase tracking-wide border-b" style={{ borderColor: 'var(--brand-line)', color: 'var(--brand-muted)' }}>
+                  <th className="px-6 py-4 font-semibold">Review ID</th>
+                  <th className="px-6 py-4 font-semibold">Gig ID</th>
+                  <th className="px-6 py-4 font-semibold">Order ID</th>
+                  <th className="px-6 py-4 font-semibold">Reviewer</th>
+                  <th className="px-6 py-4 font-semibold">Rating</th>
+                  <th className="px-6 py-4 font-semibold max-w-[200px]">Comment</th>
+                  <th className="px-6 py-4 font-semibold">Date</th>
+                  <th className="px-6 py-4 font-semibold text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y" style={{ borderColor: 'var(--brand-line)' }}>
+                {reviews.map((r) => (
+                  <tr key={r.review_id} className="transition-colors hover:bg-[#f1fbff]">
+                    <td className="px-6 py-4 text-sm font-mono" style={{ color: 'var(--brand-muted)' }}>#{r.review_id}</td>
+                    <td className="px-6 py-4 text-sm font-mono" style={{ color: 'var(--brand-muted)' }}>#{r.gig_id}</td>
+                    <td className="px-6 py-4 text-sm font-mono" style={{ color: 'var(--brand-muted)' }}>#{r.order_id}</td>
+                    <td className="px-6 py-4 text-sm" style={{ color: 'var(--brand-ink)' }}>{r.reviewer_name}</td>
+                    <td className="px-6 py-4 text-sm font-medium" style={{ color: 'var(--brand-ink)' }}>
+                      ⭐ {Number(r.rating).toFixed(1)}
+                    </td>
+                    <td className="px-6 py-4 text-sm max-w-[200px] truncate" title={r.comment} style={{ color: 'var(--brand-ink)' }}>
+                      {r.comment}
+                    </td>
+                    <td className="px-6 py-4 text-sm" style={{ color: 'var(--brand-muted)' }}>
+                      {new Date(r.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => handleDeleteReview(r.review_id)}
+                        className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {reviews.length === 0 && (
+                  <tr><td colSpan="8" className="px-6 py-16 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>No reviews found.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

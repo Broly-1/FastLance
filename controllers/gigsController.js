@@ -129,15 +129,15 @@ exports.addImage = async (req, res) => {
 exports.addTag = async (req, res) => {
   try {
     const { name } = req.body;
-    // Insert tag if not exists, then link
+    // ONLY link if tag exists
     const [existing] = await pool.query('SELECT tag_id FROM Tags WHERE name = ?', [name]);
-    let tag_id;
-    if (existing.length > 0) {
-      tag_id = existing[0].tag_id;
-    } else {
-      const [result] = await pool.query('INSERT INTO Tags (name) OUTPUT INSERTED.tag_id VALUES (?)', [name]);
-      tag_id = result.insertId;
+    
+    if (existing.length === 0) {
+      return res.status(400).json({ error: `Tag "${name}" does not exist. Only admins can create new tags.` });
     }
+    
+    const tag_id = existing[0].tag_id;
+
     // Use MERGE to avoid duplicate key errors (SQL Server equivalent of INSERT IGNORE)
     await pool.query(
       `MERGE Gig_Tags AS target
@@ -162,6 +162,21 @@ exports.search = async (req, res) => {
        WHERE g.is_active = 1 AND (g.title LIKE ? OR g.description LIKE ?)
        ORDER BY g.created_at DESC`,
       [keyword, keyword]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET all gigs for admin (ignores is_active)
+exports.getAdminAll = async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT g.*, u.username as seller_name 
+       FROM Gigs g 
+       JOIN Users u ON g.seller_id = u.user_id 
+       ORDER BY g.created_at DESC`
     );
     res.json(rows);
   } catch (err) {
