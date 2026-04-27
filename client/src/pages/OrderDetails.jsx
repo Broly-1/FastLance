@@ -62,27 +62,31 @@ async function fetchOptionalReviewByOrder(orderId) {
 }
 
 async function fetchOrderPageData(orderId) {
-  const [orderResponse, submissionsResponse, review, disputesResponse] = await Promise.all([
+  const [orderResponse, submissionsResponse, review, disputesResponse, milestonesResponse, invoicesResponse] = await Promise.all([
     fetch(`${API_BASE_URL}/api/orders/${orderId}`),
     fetch(`${API_BASE_URL}/api/submissions/order/${orderId}`),
     fetchOptionalReviewByOrder(orderId),
     fetch(`${API_BASE_URL}/api/disputes/order/${orderId}`),
+    fetch(`${API_BASE_URL}/api/milestones/order/${orderId}`),
+    fetch(`${API_BASE_URL}/api/invoices/order/${orderId}`),
   ]);
 
-  const orderData = await readJsonResponse(orderResponse, 'Order not found');
-  const submissionsData = await readJsonResponse(
-    submissionsResponse,
-    'Failed to load order activity'
-  );
-  const disputesData = await readJsonResponse(disputesResponse, 'Failed to load disputes');
+  const orderData       = await readJsonResponse(orderResponse, 'Order not found');
+  const submissionsData = await readJsonResponse(submissionsResponse, 'Failed to load order activity');
+  const disputesData    = await readJsonResponse(disputesResponse, 'Failed to load disputes');
+  const milestonesData  = await readJsonResponse(milestonesResponse, 'Failed to load milestones');
+  const invoicesData    = await readJsonResponse(invoicesResponse, 'Failed to load invoices');
 
   return {
-    order: orderData,
+    order:       orderData,
     submissions: Array.isArray(submissionsData) ? submissionsData : [],
     review,
-    disputes: Array.isArray(disputesData) ? disputesData : [],
+    disputes:    Array.isArray(disputesData)   ? disputesData   : [],
+    milestones:  Array.isArray(milestonesData) ? milestonesData : [],
+    invoices:    Array.isArray(invoicesData)   ? invoicesData   : [],
   };
 }
+
 
 function OrderDetails() {
   const { orderId } = useParams();
@@ -119,12 +123,31 @@ function OrderDetails() {
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeSubmitting, setDisputeSubmitting] = useState(false);
 
+  // Milestones
+  const [milestones, setMilestones] = useState([]);
+  const [showMilestoneForm, setShowMilestoneForm] = useState(false);
+  const [milestoneTitle, setMilestoneTitle] = useState('');
+  const [milestoneDesc, setMilestoneDesc] = useState('');
+  const [milestoneDeadline, setMilestoneDeadline] = useState('');
+  const [milestoneAmount, setMilestoneAmount] = useState('');
+  const [milestoneCritical, setMilestoneCritical] = useState(false);
+  const [milestoneSubmitting, setMilestoneSubmitting] = useState(false);
+
+  // Invoices
+  const [invoices, setInvoices] = useState([]);
+  const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+  const [invoiceAmount, setInvoiceAmount] = useState('');
+  const [invoiceDueDate, setInvoiceDueDate] = useState('');
+  const [invoiceSubmitting, setInvoiceSubmitting] = useState(false);
+
   const applyPageData = (data) => {
     setOrder(data.order);
     setSubmissions(data.submissions);
     setReview(data.review);
     setSellerReplyDraft(data.review?.seller_reply || '');
     setDisputes(data.disputes ?? []);
+    setMilestones(data.milestones ?? []);
+    setInvoices(data.invoices ?? []);
   };
 
   useEffect(() => {

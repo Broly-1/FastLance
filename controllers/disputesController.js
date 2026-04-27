@@ -1,5 +1,15 @@
 const pool = require('../db');
 
+async function notify(userId, type, title, body) {
+  try {
+    await pool.query(
+      'INSERT INTO Notifications (user_id, type, title, body) OUTPUT INSERTED.notification_id VALUES (?, ?, ?, ?)',
+      [userId, type, title, body || null]
+    );
+  } catch (_) {}
+}
+
+
 // GET disputes by order
 exports.getByOrder = async (req, res) => {
   try {
@@ -43,6 +53,14 @@ exports.create = async (req, res) => {
     );
     // Update order status to Disputed
     await pool.query("UPDATE Orders SET status = 'Disputed' WHERE order_id = ?", [order_id]);
+
+    // Notify the other party
+    const [orderRows] = await pool.query('SELECT buyer_id, seller_id FROM Orders WHERE order_id = ?', [order_id]);
+    if (orderRows.length > 0) {
+      const o = orderRows[0];
+      const otherId = Number(raised_by) === Number(o.buyer_id) ? o.seller_id : o.buyer_id;
+      notify(otherId, 'DisputeOpened', 'Dispute Opened', `A dispute has been raised on Order #${order_id}. An admin will review it.`);
+    }
     res.status(201).json({ message: 'Dispute opened', dispute_id: result.insertId });
   } catch (err) {
     res.status(500).json({ error: err.message });

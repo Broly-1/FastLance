@@ -1,19 +1,74 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
+
+const API = 'http://localhost:3000';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [activeMode, setActiveMode] = useState('Buyer'); // Default to Buyer for 'Both' role
+  const [activeMode, setActiveMode] = useState('Buyer');
+
+  // Notifications state
+  const [unreadCount, setUnreadCount]       = useState(0);
+  const [notifications, setNotifications]   = useState([]);
+  const [bellOpen, setBellOpen]             = useState(false);
+  const bellRef = useRef(null);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  // Determine effective role
   const effectiveRole = user?.role === 'Both' ? activeMode : user?.role;
+
+  // Poll unread count every 30s
+  useEffect(() => {
+    if (!user || user.role === 'Admin') return;
+
+    const fetchCount = () =>
+      fetch(`${API}/api/notifications/user/${user.id}/unread-count`)
+        .then((r) => r.ok ? r.json() : { unread_count: 0 })
+        .then((d) => setUnreadCount(Number(d.unread_count || 0)))
+        .catch(() => {});
+
+    fetchCount();
+    const interval = setInterval(fetchCount, 30_000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  // Fetch full list when bell opens
+  useEffect(() => {
+    if (!bellOpen || !user) return;
+    fetch(`${API}/api/notifications/user/${user.id}`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((d) => setNotifications(Array.isArray(d) ? d.slice(0, 15) : []))
+      .catch(() => {});
+  }, [bellOpen, user]);
+
+  // Close bell dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (bellRef.current && !bellRef.current.contains(e.target)) setBellOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const markAllRead = async () => {
+    if (!user) return;
+    await fetch(`${API}/api/notifications/user/${user.id}/read-all`, { method: 'PATCH' });
+    setUnreadCount(0);
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: 1 })));
+  };
+
+  const markOneRead = async (notifId) => {
+    await fetch(`${API}/api/notifications/${notifId}/read`, { method: 'PATCH' });
+    setNotifications((prev) =>
+      prev.map((n) => n.notification_id === notifId ? { ...n, is_read: 1 } : n)
+    );
+    setUnreadCount((c) => Math.max(0, c - 1));
+  };
 
   return (
     <nav className="brand-topbar sticky top-0 z-20">
@@ -24,65 +79,131 @@ export default function Navbar() {
               <Link to="/">Fastlance</Link>
             </h1>
             <div className="hidden md:ml-6 md:flex md:space-x-8">
-              {/* Dynamic Links Based on Role */}
               {user && effectiveRole === 'Buyer' && (
                 <>
-                  <Link to="/buyer" className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700">Explore Gigs</Link>
-                  <Link to="/buyer/orders" className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700">My Orders</Link>
+                  <NavLink to="/buyer">Explore Gigs</NavLink>
+                  <NavLink to="/buyer/orders">My Orders</NavLink>
                 </>
               )}
               {user && effectiveRole === 'Seller' && (
                 <>
-                  <Link to="/seller" className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700">My Dashboard</Link>
-                  <Link to="/seller/orders" className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700">Manage Orders</Link>
+                  <NavLink to="/seller">My Dashboard</NavLink>
+                  <NavLink to="/seller/orders">Manage Orders</NavLink>
                 </>
               )}
               {user && user.role === 'Admin' && (
-                <Link to="/admin" className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700">Administration</Link>
+                <NavLink to="/admin">Administration</NavLink>
               )}
               {user && user.role !== 'Admin' && (
-                <Link to="/wallet" className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700">
-                  <svg className="mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                  </svg>
-                  Wallet
-                </Link>
-              )}
-              {user && user.role !== 'Admin' && (
-                <Link to="/messages" className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700">
-                  <svg className="mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                  </svg>
-                  Messages
-                </Link>
+                <>
+                  <NavLink to="/wallet">
+                    <svg className="mr-1.5 h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                    Wallet
+                  </NavLink>
+                  <NavLink to="/messages">
+                    <svg className="mr-1.5 h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                    Messages
+                  </NavLink>
+                </>
               )}
             </div>
           </div>
-          
-          <div className="flex items-center">
+
+          <div className="flex items-center gap-3">
             {user ? (
-              <div className="flex items-center space-x-4">
+              <>
+                {/* Role switcher */}
                 {user.role === 'Both' && (
-                  <button 
+                  <button
                     onClick={() => {
                       const newMode = activeMode === 'Buyer' ? 'Seller' : 'Buyer';
                       setActiveMode(newMode);
-                      if (newMode === 'Seller') navigate('/seller');
-                      else navigate('/buyer');
+                      navigate(newMode === 'Seller' ? '/seller' : '/buyer');
                     }}
-                    className="brand-link text-sm font-medium transition"
+                    className="hidden sm:block brand-link text-sm font-medium transition"
                   >
                     Switch to {activeMode === 'Buyer' ? 'Selling' : 'Buying'}
                   </button>
                 )}
-                <span className="hidden text-sm text-slate-500 sm:block">Logged in as {user.username} ({user.role})</span>
-                <button 
+
+                {/* Notification Bell */}
+                {user.role !== 'Admin' && (
+                  <div className="relative" ref={bellRef}>
+                    <button
+                      onClick={() => setBellOpen((o) => !o)}
+                      className="relative brand-button-neutral rounded-xl p-2 transition"
+                      aria-label="Notifications"
+                    >
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8"
+                          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                      </svg>
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
+                      )}
+                    </button>
+
+                    {/* Bell dropdown */}
+                    {bellOpen && (
+                      <div className="absolute right-0 mt-2 w-80 brand-surface rounded-2xl overflow-hidden z-50">
+                        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--brand-line)' }}>
+                          <p className="text-sm font-bold" style={{ color: 'var(--brand-ink)' }}>Notifications</p>
+                          {unreadCount > 0 && (
+                            <button onClick={markAllRead} className="text-xs brand-link font-medium">Mark all read</button>
+                          )}
+                        </div>
+                        <div className="max-h-72 overflow-y-auto divide-y" style={{ borderColor: 'var(--brand-line)' }}>
+                          {notifications.length === 0 ? (
+                            <p className="px-4 py-8 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>No notifications yet</p>
+                          ) : notifications.map((n) => (
+                            <button
+                              key={n.notification_id}
+                              onClick={() => markOneRead(n.notification_id)}
+                              className={`w-full text-left px-4 py-3 transition hover:bg-[#f1fbff] ${!n.is_read ? 'bg-[#eef9ff]' : ''}`}
+                            >
+                              <div className="flex items-start gap-2">
+                                {!n.is_read && <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-[#2da8ed]" />}
+                                <div className={!n.is_read ? '' : 'ml-4'}>
+                                  <p className="text-sm font-semibold leading-snug" style={{ color: 'var(--brand-ink)' }}>{n.title}</p>
+                                  {n.body && <p className="text-xs mt-0.5 leading-snug" style={{ color: 'var(--brand-muted)' }}>{n.body}</p>}
+                                  <p className="text-xs mt-1" style={{ color: 'var(--brand-muted)' }}>
+                                    {new Date(n.created_at).toLocaleDateString()}
+                                  </p>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* User avatar / profile link */}
+                <Link
+                  to="/profile"
+                  className="hidden sm:flex items-center gap-2 brand-button-neutral rounded-xl px-3 py-2 text-sm font-medium transition"
+                >
+                  <div className="h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold"
+                       style={{ background: '#def4ff', color: 'var(--brand-sky-700)' }}>
+                    {user.username?.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="hidden lg:block">{user.username}</span>
+                </Link>
+
+                <button
                   onClick={handleLogout}
                   className="brand-button-neutral rounded-xl px-4 py-2 text-sm font-medium transition"
                 >
                   Logout
                 </button>
-              </div>
+              </>
             ) : (
               <div className="space-x-4 flex">
                 <Link to="/login" className="px-3 py-2 text-sm font-medium text-slate-600 transition hover:text-sky-700">Sign in</Link>
@@ -93,5 +214,16 @@ export default function Navbar() {
         </div>
       </div>
     </nav>
+  );
+}
+
+function NavLink({ to, children }) {
+  return (
+    <Link
+      to={to}
+      className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700"
+    >
+      {children}
+    </Link>
   );
 }
