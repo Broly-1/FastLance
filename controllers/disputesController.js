@@ -59,7 +59,7 @@ exports.create = async (req, res) => {
     if (orderRows.length > 0) {
       const o = orderRows[0];
       const otherId = Number(raised_by) === Number(o.buyer_id) ? o.seller_id : o.buyer_id;
-      notify(otherId, 'DisputeOpened', 'Dispute Opened', `A dispute has been raised on Order #${order_id}. An admin will review it.`);
+      notify(otherId, 'Dispute', 'Dispute Opened', `A dispute has been raised on Order #${order_id}. An admin will review it.`);
     }
     res.status(201).json({ message: 'Dispute opened', dispute_id: result.insertId });
   } catch (err) {

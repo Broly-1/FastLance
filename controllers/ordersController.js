@@ -165,7 +165,7 @@ exports.create = async (req, res) => {
 
       await conn.commit();
       // Notify seller that a new order arrived
-      notify(gig.seller_id, 'OrderPlaced', 'New Order Received', `You have a new order for "${gig.title || 'your gig'}" (#${orderId}).`);
+      notify(gig.seller_id, 'Order', 'New Order Received', `You have a new order for "${gig.title || 'your gig'}" (#${orderId}).`);
       res.status(201).json({ message: 'Order created', order_id: orderId });
 
     } catch (err) {
@@ -228,8 +228,8 @@ exports.updateStatus = async (req, res) => {
           [amount, order.seller_id]
         );
         await conn.commit();
-        notify(order.buyer_id, 'OrderCompleted', 'Order Completed', `Order #${order.order_id} has been completed. Thank you!`);
-        notify(order.seller_id, 'OrderCompleted', 'Order Completed', `Order #${order.order_id} is complete — your earnings have been credited.`);
+        notify(order.buyer_id, 'Order', 'Order Completed', `Order #${order.order_id} has been completed. Thank you!`);
+        notify(order.seller_id, 'Order', 'Order Completed', `Order #${order.order_id} is complete — your earnings have been credited.`);
         return res.json({ message: 'Order status updated', status });
 
       } catch (err) {
@@ -258,8 +258,8 @@ exports.updateStatus = async (req, res) => {
           [amount, order.buyer_id]
         );
         await conn.commit();
-        notify(order.buyer_id, 'OrderCancelled', 'Order Cancelled & Refunded', `Order #${order.order_id} has been cancelled. Your payment has been refunded.`);
-        notify(order.seller_id, 'OrderCancelled', 'Order Cancelled', `Order #${order.order_id} has been cancelled by the buyer.`);
+        notify(order.buyer_id, 'Order', 'Order Cancelled & Refunded', `Order #${order.order_id} has been cancelled. Your payment has been refunded.`);
+        notify(order.seller_id, 'Order', 'Order Cancelled', `Order #${order.order_id} has been cancelled by the buyer.`);
         return res.json({ message: 'Order status updated', status });
 
       } catch (err) {
@@ -277,8 +277,8 @@ exports.updateStatus = async (req, res) => {
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Order not found' });
     // Notify both parties of general status change
-    notify(order.buyer_id, 'StatusChange', `Order Status: ${status}`, `Order #${order.order_id} status changed to ${status}.`);
-    notify(order.seller_id, 'StatusChange', `Order Status: ${status}`, `Order #${order.order_id} status changed to ${status}.`);
+    notify(order.buyer_id, 'System', `Order Status: ${status}`, `Order #${order.order_id} status changed to ${status}.`);
+    notify(order.seller_id, 'System', `Order Status: ${status}`, `Order #${order.order_id} status changed to ${status}.`);
     res.json({ message: 'Order status updated', status });
   } catch (err) {
     res.status(500).json({ error: err.message });
