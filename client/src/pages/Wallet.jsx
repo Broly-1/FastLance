@@ -121,54 +121,64 @@ export default function Wallet() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-500 to-purple-600 mb-1">
-          My Wallet
+      <div className="mb-10 text-center relative">
+        <h1 className="text-5xl font-black tracking-tight text-[#0f172a] mb-2 uppercase italic">
+          My <span className="text-[#695f02] relative">
+            Wallet
+            <span className="absolute -bottom-1 left-0 w-full h-3 bg-[#fef08a] -z-10 rotate-[-1deg]"></span>
+          </span>
         </h1>
-        <p className="text-gray-500">Manage your funds and view your transaction history.</p>
+        <p className="text-[#50616b] font-bold">Manage your funds and view your transaction history.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12 items-start">
 
-        {/* Balance Card */}
-        <div className="md:col-span-1 relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 p-6 text-white shadow-lg">
-          <div className="absolute -top-4 -right-4 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
-          <div className="absolute -bottom-4 -left-4 h-20 w-20 rounded-full bg-white/10 blur-2xl" />
-          <p className="text-sm font-medium text-indigo-200 uppercase tracking-widest mb-2 relative z-10">
-            Current Balance
-          </p>
-          <p className="text-5xl font-black tracking-tight relative z-10">
-            ${balance.toFixed(2)}
-          </p>
-          <p className="mt-3 text-xs text-indigo-200 relative z-10">
-            {user.username} · {user.role}
-          </p>
+        {/* Balance Card - Sticky Note Style */}
+        <div className="lg:col-span-4 brand-surface p-8 bg-[#fef08a] rotate-[-1deg] shadow-[6px_6px_0px_#0f172a]">
+          <div className="mb-6">
+            <p className="text-xs font-black text-[#695f02] uppercase tracking-[0.2em] mb-1">
+              Current Balance
+            </p>
+            <p className="text-6xl font-black tracking-tighter text-[#0f172a]">
+              ${balance.toFixed(2)}
+            </p>
+          </div>
+          <div className="pt-4 border-t-2 border-[#0f172a]/10 space-y-1">
+            <p className="text-[10px] font-black text-[#0f172a]/40 uppercase tracking-widest flex justify-between">
+              <span>Account</span>
+              <span>{user.username}</span>
+            </p>
+            <p className="text-[10px] font-black text-[#0f172a]/40 uppercase tracking-widest flex justify-between">
+              <span>Tier</span>
+              <span>{user.role}</span>
+            </p>
+          </div>
         </div>
 
         {/* Action Form */}
-        <div className="md:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-          {/* Tab switcher — only shown when both options are available */}
+        <div className="lg:col-span-8 brand-surface p-8 relative">
+          <div className="absolute -top-3 -right-3 bg-white border-2 border-[#0f172a] px-3 py-1 rotate-[2deg] shadow-sm font-black text-[10px] uppercase">
+            Quick Actions
+          </div>
+          
+          {/* Tab switcher */}
           {canWithdraw && (
-            <div className="flex gap-2 mb-5">
+            <div className="flex gap-4 mb-8">
               <button
                 onClick={() => { setActionType('TopUp'); setFormError(''); setFormSuccess(''); }}
-                className={`flex-1 rounded-xl py-2 text-sm font-semibold transition border ${
-                  actionType === 'TopUp'
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300 hover:text-indigo-600'
+                className={`flex-1 brand-button-neutral text-sm flex items-center justify-center gap-2 ${
+                  actionType === 'TopUp' ? 'bg-[#fef08a] scale-[1.02]' : 'opacity-60'
                 }`}
               >
                 💳 Add Funds
               </button>
               <button
                 onClick={() => { setActionType('Withdrawal'); setFormError(''); setFormSuccess(''); }}
-                className={`flex-1 rounded-xl py-2 text-sm font-semibold transition border ${
-                  actionType === 'Withdrawal'
-                    ? 'bg-purple-600 text-white border-purple-600'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-purple-300 hover:text-purple-600'
+                className={`flex-1 brand-button-neutral text-sm flex items-center justify-center gap-2 ${
+                  actionType === 'Withdrawal' ? 'bg-[#e0f2fe] scale-[1.02]' : 'opacity-60'
                 }`}
               >
                 🏦 Withdraw
@@ -176,104 +186,109 @@ export default function Wallet() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Amount (USD)
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">$</span>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="block text-xs font-black text-[#0f172a] uppercase tracking-widest">
+                  Amount (USD)
+                </label>
+                <div className="relative group">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#0f172a] font-black">$</span>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="brand-input pl-8 font-black text-lg focus:rotate-[0.5deg]"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="block text-xs font-black text-[#0f172a] uppercase tracking-widest">
+                  Description <span className="opacity-30">(Optional)</span>
+                </label>
                 <input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="brand-input pl-7"
-                  required
+                  type="text"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder={actionType === 'TopUp' ? 'e.g. Project funds' : 'e.g. Monthly payout'}
+                  className="brand-input font-medium focus:rotate-[-0.5deg]"
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description <span className="text-gray-400 font-normal">(optional)</span>
-              </label>
-              <input
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder={actionType === 'TopUp' ? 'e.g. Funds for new project' : 'e.g. Monthly payout'}
-                className="brand-input"
-              />
-            </div>
 
             {formError && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
-                {formError}
-              </p>
+              <div className="bg-[#fee2e2] border-2 border-[#991b1b] p-4 font-bold text-xs text-[#991b1b] rotate-[0.5deg]">
+                ⚠️ ERROR: {formError}
+              </div>
             )}
             {formSuccess && (
-              <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-                {formSuccess}
-              </p>
+              <div className="bg-[#dcfce7] border-2 border-[#166534] p-4 font-bold text-xs text-[#166534] rotate-[-0.5deg]">
+                ✨ SUCCESS: {formSuccess}
+              </div>
             )}
 
             <button
               type="submit"
               disabled={submitting}
-              className={`w-full rounded-xl py-2.5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                actionType === 'TopUp'
-                  ? 'bg-indigo-600 hover:bg-indigo-700'
-                  : 'bg-purple-600 hover:bg-purple-700'
-              }`}
+              className="brand-button-primary w-full text-base py-4"
             >
               {submitting
                 ? 'Processing...'
                 : actionType === 'TopUp'
-                ? 'Add Funds'
-                : 'Request Withdrawal'}
+                ? 'Confirm Top Up'
+                : 'Confirm Withdrawal'}
             </button>
           </form>
         </div>
       </div>
 
       {/* Transaction History */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/50">
-          <h3 className="text-lg font-bold text-gray-800">Transaction History</h3>
+      <div className="brand-surface overflow-hidden">
+        <div className="brand-hero px-8 py-5 flex items-center justify-between border-b-2 border-[#0f172a]">
+          <h3 className="text-xl font-black text-[#0f172a] uppercase italic">Transaction History</h3>
+          <div className="h-2 w-24 bg-[#0f172a]/10 rounded-full"></div>
         </div>
 
         {transactions.length === 0 ? (
-          <div className="px-6 py-16 text-center text-gray-500">
-            No transactions yet. Add funds to get started!
+          <div className="px-8 py-20 text-center font-bold text-[#50616b] bg-white italic">
+            "The ledger is empty... for now."
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y-2 divide-[#0f172a]/5">
             {transactions.map((txn) => {
               const style = TXN_TYPE_STYLES[txn.type] || {
                 bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', label: txn.type, sign: '',
               };
               const isCredit = style.sign === '+';
               return (
-                <div key={txn.txn_id} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50/60 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center text-lg border ${style.bg} ${style.border}`}>
+                <div key={txn.txn_id} className="flex items-center justify-between px-8 py-6 hover:bg-[#f7f9fb] transition-colors group">
+                  <div className="flex items-center gap-6">
+                    <div className={`h-14 w-14 brand-surface flex items-center justify-center text-2xl rotate-[3deg] group-hover:rotate-[-3deg] transition-transform ${isCredit ? 'bg-[#dcfce7]' : 'bg-[#fee2e2]'}`}>
                       {txn.type === 'TopUp' ? '💳' : txn.type === 'Earning' ? '💼' : txn.type === 'Refund' ? '↩️' : txn.type === 'OrderPayment' ? '🛒' : '🏦'}
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-800 text-sm">{style.label}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {txn.description || 'No description'}
-                        {txn.order_id ? ` · Order #${txn.order_id}` : ''}
+                      <div className="flex items-center gap-2">
+                        <p className="font-black text-[#0f172a] uppercase tracking-tight">{style.label}</p>
+                        {txn.order_id && (
+                          <span className="text-[10px] font-black bg-[#e0f2fe] px-2 py-0.5 border border-[#0f172a] rounded shadow-sm">
+                            #{txn.order_id}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm font-bold text-[#50616b] mt-1 italic">
+                        {txn.description || 'General transaction'}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={`text-base font-bold ${isCredit ? 'text-green-600' : 'text-red-600'}`}>
+                    <p className={`text-xl font-black tracking-tighter ${isCredit ? 'text-[#166534]' : 'text-[#991b1b]'}`}>
                       {style.sign}${Math.abs(Number(txn.amount)).toFixed(2)}
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="text-[10px] font-black text-[#0f172a]/30 uppercase tracking-[0.2em] mt-1">
                       {new Date(txn.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
                     </p>
                   </div>

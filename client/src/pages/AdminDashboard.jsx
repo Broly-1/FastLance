@@ -29,15 +29,16 @@ export default function AdminDashboard() {
 
   const fetchAll = useCallback(async () => {
     try {
+      const headers = { 'x-user-role': user?.role || 'Admin' };
       const [summaryRes, sellersRes, disputesRes, usersRes, ordersRes, tagsRes, gigsRes, reviewsRes] = await Promise.all([
-        fetch(`${API}/api/reports/platform-summary`),
-        fetch(`${API}/api/reports/top-sellers`),
-        fetch(`${API}/api/disputes`),
-        fetch(`${API}/api/users`),
-        fetch(`${API}/api/orders`),
-        fetch(`${API}/api/tags`),
-        fetch(`${API}/api/gigs/admin/all`),
-        fetch(`${API}/api/reviews/admin/all`)
+        fetch(`${API}/api/reports/platform-summary`, { headers }),
+        fetch(`${API}/api/reports/top-sellers`, { headers }),
+        fetch(`${API}/api/disputes`, { headers }),
+        fetch(`${API}/api/users`, { headers }),
+        fetch(`${API}/api/orders`, { headers }),
+        fetch(`${API}/api/tags`, { headers }),
+        fetch(`${API}/api/gigs/admin/all`, { headers }),
+        fetch(`${API}/api/reviews/admin/all`, { headers })
       ]);
       if (!summaryRes.ok || !sellersRes.ok || !disputesRes.ok || !usersRes.ok || !ordersRes.ok || !tagsRes.ok || !gigsRes.ok || !reviewsRes.ok)
         throw new Error('Failed to fetch dashboard data.');
@@ -85,7 +86,10 @@ export default function AdminDashboard() {
   const handleDeleteUser = async (userId, username) => {
     if (!window.confirm(`Permanently delete user "${username}"? This cannot be undone.`)) return;
     try {
-      const res = await fetch(`${API}/api/users/${userId}`, { method: 'DELETE' });
+      const res = await fetch(`${API}/api/users/${userId}`, {
+        method: 'DELETE',
+        headers: { 'x-user-role': user?.role || 'Admin' }
+      });
       if (!res.ok) throw new Error('Failed to delete user.');
       await fetchAll();
     } catch (err) {
@@ -97,7 +101,10 @@ export default function AdminDashboard() {
     const action = isActive ? 'suspend' : 'activate';
     if (!window.confirm(`Are you sure you want to ${action} this user?`)) return;
     try {
-      const res = await fetch(`${API}/api/users/${userId}/${action}`, { method: 'POST' });
+      const res = await fetch(`${API}/api/users/${userId}/${action}`, {
+        method: 'POST',
+        headers: { 'x-user-role': user?.role || 'Admin' }
+      });
       if (!res.ok) throw new Error(`Failed to ${action} user.`);
       await fetchAll();
     } catch (err) {
@@ -108,7 +115,10 @@ export default function AdminDashboard() {
   const handleDeleteOrder = async (orderId) => {
     if (!window.confirm(`Permanently delete Order #${orderId}? This cannot be undone.`)) return;
     try {
-      const res = await fetch(`${API}/api/orders/${orderId}`, { method: 'DELETE' });
+      const res = await fetch(`${API}/api/orders/${orderId}`, {
+        method: 'DELETE',
+        headers: { 'x-user-role': user?.role || 'Admin' }
+      });
       if (!res.ok) throw new Error('Failed to delete order.');
       await fetchAll();
     } catch (err) {
@@ -128,7 +138,10 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`${API}/api/wallet/refund`, { 
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-role': user?.role || 'Admin'
+        },
         body: JSON.stringify({ order_id: orderId, amount, description: reason })
       });
       if (!res.ok) {
@@ -183,18 +196,41 @@ export default function AdminDashboard() {
 
   const handleExportCSV = async () => {
     try {
-      const res = await fetch(`${API}/api/reports/export`);
+      const res = await fetch(`${API}/api/reports/export`, {
+        headers: { 'x-user-role': user?.role || 'Admin' }
+      });
       if (!res.ok) throw new Error('Failed to fetch export data.');
       const data = await res.json();
       
-      if (!data || data.length === 0) {
-        alert('No data to export');
+      let csvContent = '';
+      const processDataset = (dataset) => {
+        if (!Array.isArray(dataset) || dataset.length === 0) return '';
+        const headers = Object.keys(dataset[0]).join(',');
+        const rows = dataset.map(item => 
+          Object.values(item).map(val => {
+            if (val === null || val === undefined) return '';
+            return typeof val === 'string' ? `"${val.replace(/"/g, '""')}"` : val;
+          }).join(',')
+        );
+        return [headers, ...rows].join('\n');
+      };
+
+      if (data && (data.users || data.gigs || data.orders)) {
+        // Handle structured analytics data
+        if (data.users)  csvContent += "=== USERS ===\n" + processDataset(data.users) + "\n\n";
+        if (data.gigs)   csvContent += "=== GIGS ===\n" + processDataset(data.gigs) + "\n\n";
+        if (data.orders) csvContent += "=== ORDERS ===\n" + processDataset(data.orders);
+      } else if (Array.isArray(data)) {
+        // Handle single array data
+        csvContent = processDataset(data);
+      }
+
+      if (!csvContent.trim()) {
+        alert('No data available to export.');
         return;
       }
       
-      const headers = Object.keys(data[0]).join(',');
-      const rows = data.map(item => Object.values(item).map(val => typeof val === 'string' ? `"${val.replace(/"/g, '""')}"` : val).join(','));
-      const csv = [headers, ...rows].join('\n');
+      const csv = csvContent;
       
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = window.URL.createObjectURL(blob);
@@ -213,7 +249,10 @@ export default function AdminDashboard() {
   const handleDeleteGig = async (gigId, title) => {
     if (!window.confirm(`Permanently delete gig "${title}"? This cannot be undone.`)) return;
     try {
-      const res = await fetch(`${API}/api/gigs/${gigId}`, { method: 'DELETE' });
+      const res = await fetch(`${API}/api/gigs/${gigId}`, {
+        method: 'DELETE',
+        headers: { 'x-user-role': user?.role || 'Admin' }
+      });
       if (!res.ok) throw new Error('Failed to delete gig.');
       await fetchAll();
     } catch (err) {
@@ -224,7 +263,10 @@ export default function AdminDashboard() {
   const handleDeleteReview = async (reviewId) => {
     if (!window.confirm(`Permanently delete this review? This cannot be undone.`)) return;
     try {
-      const res = await fetch(`${API}/api/reviews/${reviewId}`, { method: 'DELETE' });
+      const res = await fetch(`${API}/api/reviews/${reviewId}`, {
+        method: 'DELETE',
+        headers: { 'x-user-role': user?.role || 'Admin' }
+      });
       if (!res.ok) throw new Error('Failed to delete review.');
       await fetchAll();
     } catch (err) {

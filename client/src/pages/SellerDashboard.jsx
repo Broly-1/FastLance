@@ -109,14 +109,15 @@ export default function SellerDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      <div className="flex justify-between items-center mb-8">
-        <div className="brand-hero flex-1 px-6 py-7 sm:px-8">
-          <h1 className="brand-page-title text-3xl font-bold">Seller Dashboard</h1>
-          <p className="brand-page-subtitle mt-1 text-sm">Manage your active services and listings.</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
+        <div className="relative">
+          <h1 className="brand-page-title text-4xl font-black font-spline text-[#0f172a] rotate-[-1deg]">Seller Dashboard</h1>
+          <div className="absolute -bottom-2 left-0 w-full h-3 bg-[#fef08a] -z-10 opacity-60"></div>
+          <p className="mt-2 text-[#50616b] font-medium italic">Manage your active services and listings.</p>
         </div>
         <button 
           onClick={() => setShowForm(!showForm)}
-          className="brand-button-primary ml-4 rounded-xl px-4 py-2.5 font-medium transition shadow-sm"
+          className="brand-button-primary rounded-xl px-6 py-3 font-bold transition shadow-md hover:-translate-y-1 active:translate-y-0"
         >
           {showForm ? 'Cancel' : '+ Create New Gig'}
         </button>
@@ -204,21 +205,33 @@ export default function SellerDashboard() {
             <p className="text-slate-500">You haven't created any gigs yet.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {gigs.map(gig => (
-              <div key={gig.gig_id} className="brand-surface flex cursor-pointer flex-col overflow-hidden transition hover:shadow-md" onClick={() => navigate(`/gigs/${gig.gig_id}`)}>
-                <img src={gig.thumbnail_url || 'https://via.placeholder.com/400x300?text=No+Image'} alt={gig.title} className="w-full h-48 object-cover" />
-                <div className="p-4 flex-grow flex flex-col">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="brand-chip rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide">{gig.category}</span>
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${gig.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                      {gig.is_active ? 'Active' : 'Paused'}
+              <div key={gig.gig_id} className="brand-card-sticky group" onClick={() => navigate(`/gigs/${gig.gig_id}`)}>
+                <div className="relative h-48 mb-4 overflow-hidden border-2 border-[#0f172a]" style={{ borderRadius: '15px 225px 15px 255px / 255px 15px 225px 15px' }}>
+                  <img src={gig.thumbnail_url || 'https://via.placeholder.com/400x300?text=No+Image'} alt={gig.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                  <div className="absolute top-2 right-2 bg-white border-2 border-[#0f172a] px-2 py-0.5 text-[10px] font-bold uppercase rotate-[2deg]">
+                    {gig.is_active ? 'Active' : 'Paused'}
+                  </div>
+                </div>
+                
+                <div className="flex-grow flex flex-col">
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="bg-[#e0f2fe] border-2 border-[#0f172a] px-3 py-1 text-xs font-black uppercase tracking-tighter shadow-[2px_2px_0px_#0f172a]">
+                      {gig.category}
                     </span>
                   </div>
-                  <h3 className="mb-1 line-clamp-2 text-xl font-bold text-slate-900">{gig.title}</h3>
-                  <div className="mt-auto pt-4 flex items-center justify-between">
-                    <span className="text-sm text-slate-500">Delivery: {gig.delivery_days} days</span>
-                    <span className="text-xl font-extrabold text-slate-900">${gig.price}</span>
+                  
+                  <h3 className="mb-3 line-clamp-2 text-xl font-bold font-spline text-[#0f172a] leading-tight hover:underline decoration-[#fef08a] decoration-4">
+                    {gig.title}
+                  </h3>
+                  
+                  <div className="mt-auto pt-6 flex items-center justify-between border-t-2 border-[#0f172a] border-dashed">
+                    <span className="text-xs font-bold text-[#50616b] uppercase italic">Delivery: {gig.delivery_days} days</span>
+                    <div className="relative">
+                      <span className="absolute -inset-1 bg-[#fef08a] rounded-sm rotate-[-2deg]"></span>
+                      <span className="relative text-2xl font-black text-[#0f172a] italic">${gig.price}</span>
+                    </div>
                   </div>
                 </div>
               </div>

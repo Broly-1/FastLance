@@ -86,9 +86,20 @@ exports.update = async (req, res) => {
           [oldMilestone.order_id]
         );
         if (orderRows.length > 0) {
-            notify(orderRows[0].buyer_id, 'Order', 'Milestone Completed', `The milestone "${oldMilestone.title}" for "${orderRows[0].title}" has been marked as completed.`);
-            notify(orderRows[0].seller_id, 'Order', 'Milestone Completed', `You have completed the milestone "${oldMilestone.title}" for "${orderRows[0].title}".`);
+            notify(orderRows[0].buyer_id, 'Order', 'Milestone Approved', `The milestone "${oldMilestone.title}" for "${orderRows[0].title}" has been approved and completed.`);
+            notify(orderRows[0].seller_id, 'Order', 'Milestone Approved', `Your milestone "${oldMilestone.title}" for "${orderRows[0].title}" has been approved.`);
         }
+    }
+
+    // Notify if status changed to Delivered
+    if (status === 'Delivered' && oldMilestone.status !== 'Delivered') {
+      const [orderRows] = await pool.query(
+        'SELECT o.buyer_id, g.title FROM Orders o JOIN Gigs g ON o.gig_id = g.gig_id WHERE o.order_id = ?',
+        [oldMilestone.order_id]
+      );
+      if (orderRows.length > 0) {
+          notify(orderRows[0].buyer_id, 'Order', 'Milestone Delivered', `The milestone "${oldMilestone.title}" for "${orderRows[0].title}" has been delivered and is awaiting your approval.`);
+      }
     }
 
     res.json({ message: 'Milestone updated' });

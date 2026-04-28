@@ -101,34 +101,46 @@ export default function BuyerDashboard() {
             {gigs.filter(gig => gig.is_active).map(gig => (
               <div 
                 key={gig.gig_id} 
-                className="brand-surface group flex cursor-pointer flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl" 
+                className="brand-card-sticky group flex cursor-pointer flex-col overflow-hidden transition-all duration-300" 
                 onClick={() => navigate(`/gigs/${gig.gig_id}`)}
               >
-                <img 
-                  src={gig.thumbnail_url || 'https://via.placeholder.com/400x300?text=Service'} 
-                  alt={gig.title} 
-                  className="w-full h-40 object-cover group-hover:opacity-90 transition" 
-                />
-                <div className="p-4 flex-grow flex flex-col">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="brand-chip rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide">{gig.category}</span>
+                <div className="relative">
+                  <img 
+                    src={gig.thumbnail_url || 'https://via.placeholder.com/400x300?text=Service'} 
+                    alt={gig.title} 
+                    className="w-full h-40 object-cover border-b-2 border-[#0f172a] grayscale-[0.2] group-hover:grayscale-0 transition" 
+                  />
+                  {/* Tape/Highlighter effect for category */}
+                  <div className="absolute -top-1 -left-1 transform -rotate-3 bg-[#fef08a] px-3 py-1 border-2 border-[#0f172a] font-bold text-[10px] uppercase tracking-wider z-10 shadow-sm">
+                    {gig.category}
                   </div>
-                  <h3 className="mb-1 line-clamp-2 text-base font-medium leading-snug text-slate-900 transition group-hover:text-sky-700">{gig.title}</h3>
-                  <div className="mt-3 flex items-center">
-                    <div className="flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-[#e6f7ff]">
+                </div>
+                
+                <div className="p-4 flex-grow flex flex-col">
+                  <h3 className="mb-2 line-clamp-2 text-lg font-bold leading-tight font-spline text-[#0f172a] group-hover:underline decoration-yellow-400 decoration-2 underline-offset-4 transition">
+                    {gig.title}
+                  </h3>
+                  
+                  <div className="mt-2 flex items-center">
+                    <div className="flex h-8 w-8 items-center justify-center border-2 border-[#0f172a] overflow-hidden rounded-full bg-[#fef08a]">
                       {gig.seller_profile_pic ? (
                         <img src={gig.seller_profile_pic} alt={gig.seller_name} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-xs font-bold text-sky-700">{gig.seller_name?.charAt(0).toUpperCase()}</span>
+                        <span className="text-xs font-bold">{gig.seller_name?.charAt(0).toUpperCase()}</span>
                       )}
                     </div>
-                    <span className="ml-2 text-sm text-slate-600">{gig.seller_name}</span>
+                    <span className="ml-2 text-sm font-semibold text-[#50616b]">{gig.seller_name}</span>
                   </div>
-                  <div className="mt-auto flex items-center justify-between border-t border-[#edf5fb] pt-4">
-                    <span className="text-sm text-slate-500">{gig.delivery_days} days</span>
-                    <div className="flex flex-col items-end">
-                      <span className="text-xs uppercase tracking-wider text-[#b38a00]">Starting at</span>
-                      <span className="text-lg font-bold text-slate-900">${gig.price}</span>
+                  
+                  <div className="mt-auto flex items-center justify-between border-t-2 border-[#0f172a] pt-4 mt-4 border-dashed">
+                    <div className="flex items-center gap-1 text-sm font-medium text-[#50616b]">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      {gig.delivery_days}d
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="bg-[#fef08a] px-2 py-1 border-2 border-[#0f172a] rounded-lg rotate-2 shadow-sm">
+                        <span className="text-lg font-black text-[#0f172a]">${gig.price}</span>
+                      </div>
                     </div>
                   </div>
                 </div>

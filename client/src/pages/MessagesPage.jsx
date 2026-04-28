@@ -25,7 +25,8 @@ function Avatar({ name, size = 'md' }) {
   const initial = name?.charAt(0).toUpperCase() || '?';
   return (
     <div
-      className={`${sizeClass} flex shrink-0 items-center justify-center rounded-full bg-[#def4ff] font-bold text-[#0f699e]`}
+      className={`${sizeClass} flex shrink-0 items-center justify-center border-2 border-[#0f172a] font-bold bg-[#fef08a] text-[#0f172a] shadow-sm`}
+      style={{ borderRadius: '255px 15px 225px 15px / 15px 225px 15px 255px' }}
     >
       {initial}
     </div>
@@ -44,18 +45,18 @@ function ThreadItem({ thread, isActive, currentUserId, onClick }) {
     <button
       type="button"
       onClick={() => onClick(otherId, otherName)}
-      className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-150 ${isActive
-          ? 'border border-[#c4ebff] bg-[#eef9ff] shadow-sm'
-          : 'border border-transparent hover:bg-[#f3fbff]'
+      className={`brand-surface-interactive flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-150 ${isActive
+          ? 'border-2 border-[#0f172a] bg-[#eef9ff] shadow-md'
+          : 'border-2 border-transparent hover:bg-[#f3fbff]'
         }`}
     >
       <Avatar name={otherName} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm font-semibold text-slate-900">{otherName}</span>
-          <span className="shrink-0 text-xs text-slate-400">{formatTime(thread.sent_at)}</span>
+          <span className="truncate text-sm font-extrabold text-slate-900">{otherName}</span>
+          <span className="shrink-0 text-[10px] font-bold text-slate-400 uppercase">{formatTime(thread.sent_at)}</span>
         </div>
-        <p className="mt-0.5 truncate text-xs text-slate-500">
+        <p className="mt-0.5 truncate text-xs text-slate-600 font-medium">
           {thread.sender_id === currentUserId ? 'You: ' : ''}
           {thread.content}
         </p>
@@ -80,30 +81,35 @@ function ChatBubble({ msg, isOwn }) {
   const isFile = msg.message_type === 'File';
 
   return (
-    <div className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+    <div className={`flex items-end gap-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
       {!isOwn && <Avatar name={msg.sender_name} size="sm" />}
       <div
-        className={`max-w-[72%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ${isOwn
-            ? 'rounded-br-sm bg-gradient-to-br from-[#2da8ed] to-[#69ccff] text-white'
-            : 'rounded-bl-sm border border-[#d4e7f3] bg-white/90 text-slate-800'
+        className={`max-w-[75%] p-4 text-sm leading-relaxed border-2 border-[#0f172a] shadow-md ${isOwn
+            ? 'bg-[#fef08a] text-[#0f172a] rotate-[0.5deg]'
+            : 'bg-[#e0f2fe] text-[#0f172a] rotate-[-0.5deg]'
           }`}
+        style={{ 
+          borderRadius: isOwn 
+            ? '12px 12px 2px 12px' 
+            : '12px 12px 12px 2px',
+          boxShadow: '3px 3px 0px rgba(15, 23, 42, 0.15)'
+        }}
       >
         {isFile ? (
-          <div className="flex items-center gap-2 py-1">
-            <svg className={`h-5 w-5 ${isOwn ? 'text-sky-100' : 'text-[#2da8ed]'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <a href={msg.content} target="_blank" rel="noopener noreferrer" className={`font-semibold underline break-all ${isOwn ? 'text-white' : 'text-[#0f699e]'}`}>
+          <div className="flex items-center gap-3 py-1">
+            <div className="bg-white/40 p-2 border border-[#0f172a] rounded shadow-sm">
+              <svg className="h-5 w-5 text-[#0f172a]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <a href={msg.content} target="_blank" rel="noopener noreferrer" className="font-bold underline break-all text-[#0f172a] hover:opacity-70 transition">
               {msg.content.split('/').pop() || 'Attachment'}
             </a>
           </div>
         ) : (
-          <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+          <p className="whitespace-pre-wrap break-words font-medium">{msg.content}</p>
         )}
-        <p
-          className={`mt-1 text-right text-[10px] ${isOwn ? 'text-sky-100' : 'text-slate-400'
-            }`}
-        >
+        <p className="mt-2 text-[9px] font-black opacity-40 text-right uppercase tracking-widest">
           {formatTime(msg.sent_at)}
         </p>
       </div>
@@ -368,7 +374,7 @@ export default function MessagesPage() {
                 </div>
               </div>
               {selectedOrderId && (
-                <div className="bg-[#def4ff] text-[#0f699e] text-[10px] font-bold px-2 py-1 rounded border border-[#c4ebff]">
+                <div className="bg-[#fef08a] text-[#0f172a] text-[10px] font-bold px-2 py-1 rounded border-2 border-[#0f172a] rotate-[1deg] shadow-sm">
                   ORDER #{selectedOrderId}
                 </div>
               )}

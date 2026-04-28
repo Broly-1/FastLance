@@ -6,15 +6,15 @@ function StarRating({ rating, size = 'small' }) {
   const iconClass = size === 'large' ? 'h-5 w-5' : 'h-4 w-4';
 
   return (
-    <div className="flex items-center gap-1 text-[#f4be18]">
+    <div className="flex items-center gap-1 text-[#695f02]">
       {[1, 2, 3, 4, 5].map((value) => (
         <svg
           key={value}
           className={iconClass}
           viewBox="0 0 20 20"
-          fill={value <= rating ? 'currentColor' : 'none'}
+          fill={value <= rating ? '#fef08a' : 'none'}
           stroke="currentColor"
-          strokeWidth="1.5"
+          strokeWidth="2"
           aria-hidden="true"
         >
           <path d="M10 2.5l2.32 4.7 5.18.75-3.75 3.66.88 5.16L10 14.4 5.37 16.77l.88-5.16L2.5 7.95l5.18-.75L10 2.5z" />
@@ -145,28 +145,31 @@ export default function GigDetails() {
 
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           <div className="space-y-8 lg:col-span-2">
-            <h1 className="brand-page-title text-3xl font-extrabold leading-tight sm:text-4xl">
-              {gig.title}
-            </h1>
+            <div className="relative">
+              <h1 className="brand-page-title text-4xl font-black font-spline text-[#0f172a] leading-tight rotate-[-0.5deg]">
+                {gig.title}
+              </h1>
+              <div className="absolute -bottom-1 left-0 w-3/4 h-2 bg-[#fef08a] -z-10 opacity-50"></div>
+            </div>
 
             <div className="flex items-center space-x-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#def4ff] text-xl font-bold text-sky-700">
+              <div className="flex h-14 w-14 items-center justify-center border-2 border-[#0f172a] bg-[#fef08a] text-2xl font-black text-[#0f172a] shadow-sm rotate-[2deg]" style={{ borderRadius: '255px 15px 225px 15px / 15px 225px 15px 255px' }}>
                 {gig.seller_name?.charAt(0).toUpperCase()}
               </div>
               <div>
-                <p className="text-lg font-medium text-slate-900">{gig.seller_name}</p>
+                <p className="text-xl font-bold font-spline text-[#0f172a]">{gig.seller_name}</p>
                 {averageRating ? (
-                  <div className="mt-1 flex items-center gap-2">
+                  <div className="mt-1 flex items-center gap-3">
                     <StarRating rating={roundedAverageRating} />
-                    <span className="text-sm font-semibold text-[#0f699e]">
+                    <span className="text-sm font-black text-[#0f172a] italic">
                       {averageRating.toFixed(1)} / 5
                     </span>
-                    <span className="text-sm text-slate-500">
-                      from {reviewCount} review{reviewCount === 1 ? '' : 's'}
+                    <span className="text-sm font-medium text-[#50616b]">
+                      ({reviewCount} reviews)
                     </span>
                   </div>
                 ) : (
-                  <p className="text-sm text-slate-500">No reviews yet</p>
+                  <p className="text-sm font-medium text-[#50616b] italic">No reviews yet</p>
                 )}
               </div>
             </div>
@@ -257,20 +260,23 @@ export default function GigDetails() {
           </div>
 
           <div className="lg:col-span-1">
-            <div className="brand-surface sticky top-24 p-6">
+            <div className="brand-card-sticky sticky top-24">
               <div className="mb-6 flex items-start justify-between">
-                <h3 className="text-xl font-bold text-slate-900">Standard Package</h3>
-                <span className="text-3xl font-extrabold text-slate-900">${gig.price}</span>
+                <h3 className="text-2xl font-bold font-spline text-[#0f172a]">Standard</h3>
+                <div className="relative">
+                  <span className="absolute -inset-1 bg-[#fef08a] rounded-sm rotate-[-2deg]"></span>
+                  <span className="relative text-3xl font-black text-[#0f172a] italic">${gig.price}</span>
+                </div>
               </div>
 
               {averageRating && (
-                <div className="mb-6 rounded-2xl border border-[#c8ecff] bg-[#eef9ff] p-4">
+                <div className="mb-8 p-4 border-2 border-[#0f172a] bg-[#e0f2fe] shadow-[4px_4px_0px_#0f172a]">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                        Buyer Rating
+                      <p className="text-[10px] font-black uppercase tracking-widest text-[#0f172a]/60">
+                        TRUST SCORE
                       </p>
-                      <p className="mt-1 text-lg font-bold text-[#0f699e]">{averageRating.toFixed(1)} / 5</p>
+                      <p className="mt-1 text-lg font-black text-[#0f172a] italic">{averageRating.toFixed(1)} / 5</p>
                     </div>
                     <StarRating rating={roundedAverageRating} size="large" />
                   </div>

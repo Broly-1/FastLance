@@ -221,9 +221,10 @@ function NavLink({ to, children }) {
   return (
     <Link
       to={to}
-      className="inline-flex items-center border-b-2 border-transparent px-1 pt-1 text-sm font-medium text-slate-700 transition hover:border-[#ffd247] hover:text-sky-700"
+      className="inline-flex items-center px-1 pt-1 text-sm font-bold text-[#0f172a] transition-all hover:text-[#695f02] relative group"
     >
-      {children}
+      <span className="relative z-10">{children}</span>
+      <span className="absolute bottom-3 left-0 right-0 h-2 bg-[#fef08a] transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left z-0 rotate-[-1deg]"></span>
     </Link>
   );
 }

@@ -262,17 +262,21 @@ exports.userFeedback = async (req, res) => {
   }
 };
 
-// Admin Export Data
+// Admin Export Data - Aggregates multiple tables for a full platform snapshot
 exports.exportAnalytics = async (req, res) => {
   try {
-        const [users] = await pool.query("SELECT user_id, username, email, role, created_at, wallet_balance, is_active FROM Users");
-        const [gigs] = await pool.query("SELECT gig_id, seller_id, title, category, price, created_at, is_active FROM Gigs");
-        const [orders] = await pool.query("SELECT order_id, buyer_id, gig_id, total_price as amount, status, order_date FROM Orders");
+    const [users] = await pool.query("SELECT user_id, username, email, role, created_at, wallet_balance, is_active FROM Users");
+    const [gigs] = await pool.query("SELECT gig_id, seller_id, title, category, price, created_at, is_active FROM Gigs");
+    const [orders] = await pool.query("SELECT order_id, buyer_id, gig_id, total_price as amount, status, order_date FROM Orders");
     
-    // If only one row returned by pool.query, actually we need the whole array
-    // pool.query returns [rows, fields]
-    res.json({ users, gigs, orders });
+    // Return structured object containing all datasets
+    res.json({ 
+      users: users || [], 
+      gigs: gigs || [], 
+      orders: orders || [] 
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Export Error:', err);
+    res.status(500).json({ error: 'Internal server error during data export.' });
   }
 };
