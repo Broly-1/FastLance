@@ -88,13 +88,19 @@ exports.refund = async (req, res) => {
     try {
       await conn.beginTransaction();
 
-      // Find the buyer ID for the refund
-      const [orders] = await conn.query('SELECT buyer_id FROM Orders WHERE order_id = ?', [order_id]);
+      // Find the buyer ID and status for the refund
+      const [orders] = await conn.query('SELECT buyer_id, status FROM Orders WHERE order_id = ?', [order_id]);
       if (orders.length === 0) {
          await conn.rollback();
          return res.status(404).json({ error: 'Order not found' });
       }
-      const buyerId = orders[0].buyer_id;
+      const { buyer_id: buyerId, status } = orders[0];
+
+      // Prevent refunding already cancelled orders (they are auto-refunded)
+      if (status === 'Cancelled') {
+        await conn.rollback();
+        return res.status(400).json({ error: 'This order has already been cancelled and automatically refunded.' });
+      }
 
       // Insert refund transaction
       const [result] = await conn.query(

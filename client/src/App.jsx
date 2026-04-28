@@ -16,6 +16,7 @@ import MessagesPage from './pages/MessagesPage';
 import OrderDetails from './pages/OrderDetails';
 import Wallet from './pages/Wallet';
 import Profile from './pages/Profile';
+import Reports from './pages/Reports';
 
 // A tiny helper component to route users to the right landing page if they hit "/"
 function HomeRedirect() {
@@ -111,6 +112,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['Buyer', 'Seller', 'Both']}>
                     <Profile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/reports"
+                element={
+                  <ProtectedRoute allowedRoles={['Admin', 'Seller', 'Both']}>
+                    <Reports />
                   </ProtectedRoute>
                 }
               />

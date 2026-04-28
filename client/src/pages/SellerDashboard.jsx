@@ -147,7 +147,10 @@ export default function SellerDashboard() {
         <div className="relative">
           <h1 className="brand-page-title text-4xl font-black font-spline text-[#0f172a] rotate-[-1deg]">Seller Dashboard</h1>
           <div className="absolute -bottom-2 left-0 w-full h-3 bg-[#fef08a] -z-10 opacity-60"></div>
-          <p className="mt-2 text-[#50616b] font-medium italic">Manage your active services and listings.</p>
+          <div className="flex gap-4 mt-2">
+            <p className="text-[#50616b] font-medium italic">Manage your active services and listings.</p>
+            <button onClick={() => navigate('/reports')} className="text-xs font-bold text-[#1689ca] hover:underline">View Analytics & Reports →</button>
+          </div>
         </div>
         <button 
           onClick={() => setShowForm(!showForm)}

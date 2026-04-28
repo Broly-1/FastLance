@@ -104,7 +104,7 @@ export default function Navbar() {
               </form>
             )}
 
-            <div className="hidden md:ml-6 md:flex md:space-x-8">
+            <div className="hidden md:ml-6 md:flex md:space-x-8 pr-12">
               {user && effectiveRole === 'Buyer' && (
                 <>
                   <NavLink to="/buyer">Explore Gigs</NavLink>
@@ -115,10 +115,14 @@ export default function Navbar() {
                 <>
                   <NavLink to="/seller">My Dashboard</NavLink>
                   <NavLink to="/seller/orders">Manage Orders</NavLink>
+                  <NavLink to="/reports">Reports</NavLink>
                 </>
               )}
               {user && user.role === 'Admin' && (
-                <NavLink to="/admin">Administration</NavLink>
+                <>
+                  <NavLink to="/admin">Administration</NavLink>
+                  <NavLink to="/reports">Reports</NavLink>
+                </>
               )}
               {user && user.role !== 'Admin' && (
                 <>
@@ -139,23 +143,9 @@ export default function Navbar() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4 lg:gap-6">
             {user ? (
               <>
-                {/* Role switcher */}
-                {user.role === 'Both' && (
-                  <button
-                    onClick={() => {
-                      const newMode = activeMode === 'Buyer' ? 'Seller' : 'Buyer';
-                      setActiveMode(newMode);
-                      navigate(newMode === 'Seller' ? '/seller' : '/buyer');
-                    }}
-                    className="hidden sm:block brand-link text-sm font-medium transition"
-                  >
-                    Switch to {activeMode === 'Buyer' ? 'Selling' : 'Buying'}
-                  </button>
-                )}
-
                 {/* Notification Bell */}
                 {user.role !== 'Admin' && (
                   <div className="relative" ref={bellRef}>
@@ -232,6 +222,20 @@ export default function Navbar() {
                 >
                   Logout
                 </button>
+
+                {/* Role switcher */}
+                {user.role === 'Both' && (
+                  <button
+                    onClick={() => {
+                      const newMode = activeMode === 'Buyer' ? 'Seller' : 'Buyer';
+                      setActiveMode(newMode);
+                      navigate(newMode === 'Seller' ? '/seller' : '/buyer');
+                    }}
+                    className="hidden sm:block brand-link text-sm font-black ml-4 pr-2 transition"
+                  >
+                    Switch to {activeMode === 'Buyer' ? 'Selling' : 'Buying'}
+                  </button>
+                )}
               </>
             ) : (
               <div className="space-x-4 flex">

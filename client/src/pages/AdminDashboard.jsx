@@ -151,7 +151,16 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleRefundOrder = async (orderId) => {
+  const handleRefundOrder = async (orderId, currentStatus) => {
+    if (currentStatus === 'Cancelled') {
+      alert('This order has already been cancelled and automatically refunded.');
+      return;
+    }
+    if (currentStatus === 'Completed') {
+      if (!window.confirm('Warning: This order is already marked as "Completed" and the seller has been paid. Refunding the buyer now will not automatically deduct funds from the seller. Do you wish to proceed?')) {
+        return;
+      }
+    }
     const amountStr = window.prompt(`Issue refund for Order #${orderId}.\nEnter the refund amount:`);
     if (!amountStr) return;
     const amount = Number(amountStr);
@@ -374,46 +383,16 @@ export default function AdminDashboard() {
             <StatCard label="Total Revenue"    value={`$${Number(summary?.total_revenue ?? 0).toLocaleString()}`}    icon="💰" />
             <StatCard label="Avg. Rating"      value={`${summary?.platform_avg_rating ?? 0} / 5`}                    icon="⭐" />
           </div>
-          <div className="brand-surface overflow-hidden">
-            <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--brand-line)' }}>
-              <h3 className="brand-page-title text-lg font-bold">🏆 Top Performing Sellers</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-xs uppercase tracking-wide border-b" style={{ borderColor: 'var(--brand-line)', color: 'var(--brand-muted)' }}>
-                    <th className="px-6 py-4 font-semibold">Seller</th>
-                    <th className="px-6 py-4 font-semibold text-center">Completed Orders</th>
-                    <th className="px-6 py-4 font-semibold text-center">Avg. Rating</th>
-                    <th className="px-6 py-4 font-semibold text-center">Reviews</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y" style={{ borderColor: 'var(--brand-line)' }}>
-                  {topSellers.map((seller, idx) => (
-                    <tr key={seller.user_id} className="transition-colors hover:bg-[#f1fbff]">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-sm border"
-                               style={{ background: '#eef9ff', borderColor: '#c8ecff', color: 'var(--brand-sky-700)' }}>
-                            {seller.username.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-sm" style={{ color: 'var(--brand-ink)' }}>{seller.username}</p>
-                            <p className="text-xs" style={{ color: 'var(--brand-muted)' }}>Rank #{idx + 1}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-center"><span className="brand-chip rounded-full px-3 py-1 text-xs font-semibold">{seller.total_orders}</span></td>
-                      <td className="px-6 py-4 text-center"><span className="brand-chip-warm rounded-full px-3 py-1 text-xs font-semibold">⭐ {Number(seller.avg_rating).toFixed(2)}</span></td>
-                      <td className="px-6 py-4 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>{seller.total_reviews}</td>
-                    </tr>
-                  ))}
-                  {topSellers.length === 0 && (
-                    <tr><td colSpan="4" className="px-6 py-16 text-center text-sm" style={{ color: 'var(--brand-muted)' }}>No completed orders found yet.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+
+          <div className="brand-surface p-8 text-center bg-[#f0f9ff]">
+             <h3 className="text-xl font-bold text-[#0f172a] mb-4">Deep Analytics & Trends</h3>
+             <p className="text-slate-600 mb-6 max-w-2xl mx-auto">Access comprehensive reports on revenue trends, market category distribution, trending gigs, and operational health.</p>
+             <button 
+               onClick={() => navigate('/reports')}
+               className="brand-button-primary rounded-xl px-8 py-3 font-bold transition shadow-lg hover:-translate-y-1"
+             >
+               📊 Open Detailed Reports
+             </button>
           </div>
         </>
       )}
@@ -585,10 +564,15 @@ export default function AdminDashboard() {
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
                         <button
-                          onClick={() => handleRefundOrder(o.order_id)}
-                          className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-600 transition hover:bg-blue-50"
+                          onClick={() => handleRefundOrder(o.order_id, o.status)}
+                          disabled={o.status === 'Cancelled'}
+                          className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                            o.status === 'Cancelled'
+                              ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                              : 'border-blue-200 bg-white text-blue-600 hover:bg-blue-50'
+                          }`}
                         >
-                          Refund
+                          {o.status === 'Cancelled' ? 'Refunded' : 'Refund'}
                         </button>
                         <button
                           onClick={() => handleDeleteOrder(o.order_id)}
