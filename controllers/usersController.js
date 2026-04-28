@@ -66,7 +66,7 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
     
     const [rows] = await pool.query(
-      'SELECT user_id, username, email, role, is_active FROM Users WHERE email = ? AND password_hash = ?',
+      'SELECT user_id, username, email, role, is_active, profile_pic_url FROM Users WHERE email = ? AND password_hash = ?',
       [email, password]
     );
 
@@ -88,7 +88,8 @@ exports.login = async (req, res) => {
         id: user.user_id,
         username: user.username,
         email: user.email,
-        role: user.role
+        role: user.role,
+        profile_pic_url: user.profile_pic_url
       } 
     });
 

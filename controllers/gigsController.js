@@ -151,18 +151,49 @@ exports.addTag = async (req, res) => {
   }
 };
 
-// Search gigs by keyword
+// Search & Filter gigs
 exports.search = async (req, res) => {
   try {
-    const { q } = req.query;
-    const keyword = `%${q}%`;
-    const [rows] = await pool.query(
-      `SELECT g.*, u.username AS seller_name
-       FROM Gigs g JOIN Users u ON g.seller_id = u.user_id
-       WHERE g.is_active = 1 AND (g.title LIKE ? OR g.description LIKE ?)
-       ORDER BY g.created_at DESC`,
-      [keyword, keyword]
-    );
+    const { q, category, minPrice, maxPrice, sortBy } = req.query;
+    
+    let query = `
+      SELECT g.*, u.username AS seller_name
+      FROM Gigs g 
+      JOIN Users u ON g.seller_id = u.user_id
+      WHERE g.is_active = 1
+    `;
+    const params = [];
+
+    if (q) {
+      query += ` AND (g.title LIKE ? OR g.description LIKE ?)`;
+      params.push(`%${q}%`, `%${q}%`);
+    }
+
+    if (category) {
+      query += ` AND g.category = ?`;
+      params.push(category);
+    }
+
+    if (minPrice) {
+      query += ` AND g.price >= ?`;
+      params.push(parseFloat(minPrice));
+    }
+
+    if (maxPrice) {
+      query += ` AND g.price <= ?`;
+      params.push(parseFloat(maxPrice));
+    }
+
+    // Sorting
+    let orderBy = 'g.created_at DESC';
+    if (sortBy === 'price_low') orderBy = 'g.price ASC';
+    if (sortBy === 'price_high') orderBy = 'g.price DESC';
+    if (sortBy === 'newest') orderBy = 'g.created_at DESC';
+    if (sortBy === 'oldest') orderBy = 'g.created_at ASC';
+
+    query += ` ORDER BY ${orderBy}`;
+
+    const [rows] = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });

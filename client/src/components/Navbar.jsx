@@ -74,10 +74,36 @@ export default function Navbar() {
     <nav className="brand-topbar sticky top-0 z-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
-          <div className="flex items-center">
-            <h1 className="brand-logo-text text-2xl font-extrabold tracking-tight">
+          <div className="flex items-center flex-1">
+            <h1 className="brand-logo-text text-2xl font-extrabold tracking-tight flex-shrink-0">
               <Link to="/">Fastlance</Link>
             </h1>
+
+            {/* Global Search Bar */}
+            {user && effectiveRole === 'Buyer' && (
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const term = e.target.search.value;
+                  if (term.trim()) {
+                    navigate(`/buyer?q=${encodeURIComponent(term)}`);
+                    e.target.reset();
+                  }
+                }}
+                className="hidden lg:flex ml-8 flex-1 max-w-sm relative"
+              >
+                <input 
+                  name="search"
+                  type="text" 
+                  placeholder="What service are you looking for today?"
+                  className="brand-input pl-10 h-10 text-sm italic"
+                />
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#50616b]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </form>
+            )}
+
             <div className="hidden md:ml-6 md:flex md:space-x-8">
               {user && effectiveRole === 'Buyer' && (
                 <>
@@ -190,9 +216,12 @@ export default function Navbar() {
                   to="/profile"
                   className="hidden sm:flex items-center gap-2 brand-button-neutral rounded-xl px-3 py-2 text-sm font-medium transition"
                 >
-                  <div className="h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold"
-                       style={{ background: '#def4ff', color: 'var(--brand-sky-700)' }}>
-                    {user.username?.charAt(0).toUpperCase()}
+                  <div className="h-8 w-8 flex items-center justify-center brand-surface font-black text-xs text-[#0f172a] bg-[#fef08a] overflow-hidden rounded-full flex-shrink-0">
+                    {user?.profile_pic_url ? (
+                      <img src={user.profile_pic_url} alt={user.username} className="h-full w-full object-cover" />
+                    ) : (
+                      user?.username?.charAt(0).toUpperCase()
+                    )}
                   </div>
                   <span className="hidden lg:block">{user.username}</span>
                 </Link>

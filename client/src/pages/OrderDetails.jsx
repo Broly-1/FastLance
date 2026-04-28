@@ -132,6 +132,7 @@ function OrderDetails() {
   const [milestoneAmount, setMilestoneAmount] = useState('');
   const [milestoneCritical, setMilestoneCritical] = useState(false);
   const [milestoneSubmitting, setMilestoneSubmitting] = useState(false);
+  const [editingMilestone, setEditingMilestone] = useState(null); // Milestone object being edited
 
   // Invoices
   const [invoices, setInvoices] = useState([]);
@@ -435,6 +436,52 @@ function OrderDetails() {
     }
   };
 
+  const handleUpdateMilestone = async (event) => {
+    event.preventDefault();
+    if (!editingMilestone.title.trim() || !editingMilestone.deadline) {
+      setActionError('Title and deadline are required.');
+      return;
+    }
+    try {
+      setMilestoneSubmitting(true);
+      resetFeedback();
+      const response = await fetch(`${API_BASE_URL}/api/milestones/${editingMilestone.milestone_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editingMilestone.title.trim(),
+          description: editingMilestone.description?.trim(),
+          deadline: editingMilestone.deadline,
+          amount: parseFloat(editingMilestone.amount) || null,
+          is_critical_path: editingMilestone.is_critical_path ? 1 : 0
+        }),
+      });
+      await readJsonResponse(response, 'Failed to update milestone');
+      setEditingMilestone(null);
+      await refreshOrderPage();
+      setActionSuccess('Milestone updated.');
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setMilestoneSubmitting(false);
+    }
+  };
+
+  const handleDeleteMilestone = async (milestoneId) => {
+    if (!window.confirm('Are you sure you want to delete this milestone?')) return;
+    try {
+      resetFeedback();
+      const response = await fetch(`${API_BASE_URL}/api/milestones/${milestoneId}`, {
+        method: 'DELETE',
+      });
+      await readJsonResponse(response, 'Failed to delete milestone');
+      await refreshOrderPage();
+      setActionSuccess('Milestone deleted.');
+    } catch (err) {
+      setActionError(err.message);
+    }
+  };
+
   const handleCompleteMilestone = async (milestoneId) => {
     try {
       resetFeedback();
@@ -563,9 +610,25 @@ function OrderDetails() {
 
           {/* ── Deliverables & Milestones ── */}
           <section className="space-y-6">
-            <div className="flex items-center gap-4 mb-2">
-              <h2 className="text-2xl font-black text-[#0f172a] uppercase italic">Milestones</h2>
-              <div className="h-0.5 flex-1 bg-[#0f172a] opacity-10"></div>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-4">
+                <h2 className="text-2xl font-black text-[#0f172a] uppercase italic">Milestones</h2>
+                <div className="h-0.5 w-24 bg-[#0f172a] opacity-10 hidden sm:block"></div>
+              </div>
+              {milestones.length > 0 && (
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-black uppercase text-[#50616b] hidden xs:block">Progress</span>
+                  <div className="w-24 sm:w-32 h-3 bg-slate-100 border-2 border-[#0f172a] rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-[#fef08a] transition-all duration-500" 
+                      style={{ width: `${(milestones.filter(m => m.status === 'Completed').length / milestones.length) * 100}%` }}
+                    ></div>
+                  </div>
+                  <span className="text-[10px] font-black text-[#0f172a]">
+                    {Math.round((milestones.filter(m => m.status === 'Completed').length / milestones.length) * 100)}%
+                  </span>
+                </div>
+              )}
             </div>
             
             <div className="space-y-6 relative pl-6">
@@ -573,47 +636,114 @@ function OrderDetails() {
               
               {milestones.length > 0 ? (
                 milestones.map((m) => (
-                  <div key={m.milestone_id} className="brand-surface p-6 relative group bg-white hover:bg-[#fcfdfd]">
-                    <div className="absolute -left-[31px] top-8 w-5 h-5 rounded-full border-4 border-[#0f172a] bg-[#fef08a] z-10 shadow-sm"></div>
+                  <div key={m.milestone_id} className="brand-surface p-6 relative group bg-white hover:bg-[#fcfdfd] transition-colors">
+                    <div className={`absolute -left-[31px] top-8 w-5 h-5 rounded-full border-4 border-[#0f172a] z-10 shadow-sm ${m.status === 'Completed' ? 'bg-[#22c55e]' : 'bg-[#fef08a]'}`}></div>
+                    
                     <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h4 className="font-black text-lg text-[#0f172a] uppercase tracking-tight">{m.title}</h4>
-                        {m.description && <p className="text-sm text-[#50616b] font-medium mt-1">"{m.description}"</p>}
+                      <div className="flex-grow">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-black text-lg text-[#0f172a] uppercase tracking-tight">{m.title}</h4>
+                          {m.is_critical_path && <span className="text-[9px] font-black bg-amber-100 text-amber-700 px-1.5 py-0.5 border border-amber-200 rounded uppercase tracking-tighter">Critical</span>}
+                        </div>
+                        {m.description && <p className="text-sm text-[#50616b] font-medium mt-1 leading-relaxed">"{m.description}"</p>}
                       </div>
-                      <span className={getStatusClasses(m.status)}>
-                        {m.status}
-                      </span>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className={getStatusClasses(m.status)}>{m.status}</span>
+                        
+                        {/* Edit/Delete for Pending milestones (Seller only) */}
+                        {isSeller && m.status === 'Pending' && (
+                          <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={() => setEditingMilestone({ ...m, deadline: m.deadline.split('T')[0] })}
+                              className="text-[10px] font-bold text-sky-600 hover:underline"
+                            >
+                              Edit
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteMilestone(m.milestone_id)}
+                              className="text-[10px] font-bold text-red-500 hover:underline"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
+
                     <div className="flex flex-wrap justify-between items-center gap-4 pt-4 border-t-2 border-[#0f172a]/5">
                       <div className="flex gap-6 text-[10px] font-black text-[#0f172a]/40 uppercase tracking-widest">
-                        <div className="flex items-center gap-1">📅 {new Date(m.deadline).toLocaleDateString()}</div>
-                        {m.amount && <div className="flex items-center gap-1">💰 ${m.amount}</div>}
-                        {m.is_critical_path && <div className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded">🔥 CRITICAL</div>}
+                        <div className="flex items-center gap-1.5">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                          {new Date(m.deadline).toLocaleDateString()}
+                        </div>
+                        {m.amount && (
+                          <div className="flex items-center gap-1.5 text-[#0f172a]/60">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            ${m.amount}
+                          </div>
+                        )}
                       </div>
+                      
                       <div className="flex gap-2">
                         {isSeller && m.status === 'Pending' && (
                           <button
                             onClick={() => handleDeliverMilestone(m.milestone_id)}
-                            className="brand-button-primary text-xs py-2 px-6"
+                            className="brand-button-primary text-[10px] py-1.5 px-4"
                           >
-                            Deliver Phase
+                            Mark as Delivered
                           </button>
                         )}
                         {isBuyer && m.status === 'Delivered' && (
                           <button
                             onClick={() => handleCompleteMilestone(m.milestone_id)}
-                            className="brand-button-primary text-xs py-2 px-6 bg-[#22c55e] border-[#166534] shadow-[#166534]"
+                            className="brand-button-primary text-[10px] py-1.5 px-4 bg-[#22c55e] border-[#166534] shadow-[#166534]"
                           >
                             Approve Phase
                           </button>
                         )}
                       </div>
                     </div>
+
+                    {/* Inline Edit Form */}
+                    {editingMilestone?.milestone_id === m.milestone_id && (
+                      <form onSubmit={handleUpdateMilestone} className="mt-6 brand-surface p-6 bg-[#fef08a]/5 border-dashed space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase">Title</label>
+                            <input type="text" value={editingMilestone.title} onChange={e => setEditingMilestone({...editingMilestone, title: e.target.value})} className="brand-input text-xs h-8" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase">Deadline</label>
+                            <input type="date" value={editingMilestone.deadline} onChange={e => setEditingMilestone({...editingMilestone, deadline: e.target.value})} className="brand-input text-xs h-8" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black uppercase">Amount ($)</label>
+                            <input type="number" value={editingMilestone.amount || ''} onChange={e => setEditingMilestone({...editingMilestone, amount: e.target.value})} className="brand-input text-xs h-8" />
+                          </div>
+                          <div className="flex items-center gap-2 pt-4">
+                            <input type="checkbox" checked={editingMilestone.is_critical_path} onChange={e => setEditingMilestone({...editingMilestone, is_critical_path: e.target.checked})} className="h-4 w-4 border-2 border-[#0f172a] rounded" />
+                            <label className="text-[10px] font-black uppercase">Critical Path</label>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black uppercase">Description</label>
+                          <textarea value={editingMilestone.description || ''} onChange={e => setEditingMilestone({...editingMilestone, description: e.target.value})} className="brand-input text-xs" rows="2" />
+                        </div>
+                        <div className="flex gap-2">
+                          <button type="submit" disabled={milestoneSubmitting} className="brand-button-primary text-[10px] py-1.5 px-4 flex-1">
+                            {milestoneSubmitting ? 'Updating...' : 'Update Milestone'}
+                          </button>
+                          <button type="button" onClick={() => setEditingMilestone(null)} className="brand-button-neutral text-[10px] py-1.5 px-4">
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    )}
                   </div>
                 ))
               ) : (
-                <div className="brand-surface p-8 text-center text-[#50616b] font-bold italic bg-[#f8fafc]/50">
-                  No specific milestones defined for this order.
+                <div className="brand-surface p-12 text-center text-[#50616b] font-bold italic bg-white/50 border-dashed">
+                  No specific milestones defined for this roadmap.
                 </div>
               )}
 
@@ -623,15 +753,15 @@ function OrderDetails() {
                     <button
                       type="button"
                       onClick={() => { resetFeedback(); setShowMilestoneForm(true); }}
-                      className="brand-button-neutral w-full py-4 text-xs tracking-widest uppercase"
+                      className="brand-button-neutral w-full py-4 text-[10px] font-black tracking-widest uppercase flex items-center justify-center gap-2"
                     >
-                      + Add New Milestone
+                      <span className="text-lg">+</span> Add Project Milestone
                     </button>
                   ) : (
                     <form onSubmit={handleCreateMilestone} className="brand-surface p-8 space-y-6 mt-2 bg-[#fef08a]/10 rotate-[0.5deg]">
                       <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-black text-[#0f172a] uppercase italic">Define Phase</h4>
-                        <span className="text-[10px] font-bold opacity-30">NEW MILESTONE</span>
+                        <h4 className="font-black text-[#0f172a] uppercase italic">New Milestone</h4>
+                        <span className="text-[10px] font-bold opacity-30 tracking-widest">ROADMAP BUILDER</span>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
@@ -656,10 +786,10 @@ function OrderDetails() {
                         <textarea rows="3" value={milestoneDesc} onChange={e=>setMilestoneDesc(e.target.value)} className="brand-input" placeholder="What will be delivered in this phase?"></textarea>
                       </div>
                       <div className="flex gap-4 pt-4">
-                        <button type="submit" disabled={milestoneSubmitting} className="brand-button-primary flex-1 py-3">
-                          {milestoneSubmitting ? 'Saving...' : 'Save Phase'}
+                        <button type="submit" disabled={milestoneSubmitting} className="brand-button-primary flex-1 py-3 text-xs uppercase tracking-widest font-black">
+                          {milestoneSubmitting ? 'Creating...' : 'Create Milestone'}
                         </button>
-                        <button type="button" onClick={() => setShowMilestoneForm(false)} className="brand-button-neutral px-8">
+                        <button type="button" onClick={() => setShowMilestoneForm(false)} className="brand-button-neutral px-8 text-xs uppercase tracking-widest font-black">
                           Cancel
                         </button>
                       </div>
@@ -815,8 +945,12 @@ function OrderDetails() {
                     >
                       <div className="mb-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 brand-surface flex items-center justify-center font-black bg-[#fef08a] text-xs">
-                            {submission.submitted_by_name.charAt(0).toUpperCase()}
+                          <div className="h-10 w-10 brand-surface flex items-center justify-center font-black bg-[#fef08a] text-xs overflow-hidden">
+                            {submission.profile_pic_url ? (
+                              <img src={submission.profile_pic_url} alt={submission.submitted_by_name} className="h-full w-full object-cover" />
+                            ) : (
+                              submission.submitted_by_name.charAt(0).toUpperCase()
+                            )}
                           </div>
                           <div>
                             <p className="font-black text-[#0f172a] uppercase text-sm tracking-tight">{submission.submitted_by_name}</p>

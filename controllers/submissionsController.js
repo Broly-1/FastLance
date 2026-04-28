@@ -17,7 +17,7 @@ function toBoolean(value) {
 exports.getByOrder = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT s.*, u.username AS submitted_by_name
+      `SELECT s.*, u.username AS submitted_by_name, u.profile_pic_url
        FROM Order_Submissions s
        JOIN Users u ON s.submitted_by = u.user_id
        WHERE s.order_id = ?

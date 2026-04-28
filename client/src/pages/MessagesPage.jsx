@@ -20,15 +20,19 @@ function formatTime(dateStr) {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
-function Avatar({ name, size = 'md' }) {
+function Avatar({ name, url, size = 'md' }) {
   const sizeClass = size === 'sm' ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm';
   const initial = name?.charAt(0).toUpperCase() || '?';
   return (
     <div
-      className={`${sizeClass} flex shrink-0 items-center justify-center border-2 border-[#0f172a] font-bold bg-[#fef08a] text-[#0f172a] shadow-sm`}
+      className={`${sizeClass} flex shrink-0 items-center justify-center border-2 border-[#0f172a] font-bold bg-[#fef08a] text-[#0f172a] shadow-sm overflow-hidden`}
       style={{ borderRadius: '255px 15px 225px 15px / 15px 225px 15px 255px' }}
     >
-      {initial}
+      {url ? (
+        <img src={url} alt={name} className="h-full w-full object-cover" />
+      ) : (
+        initial
+      )}
     </div>
   );
 }
@@ -40,17 +44,19 @@ function ThreadItem({ thread, isActive, currentUserId, onClick }) {
     thread.sender_id === currentUserId ? thread.receiver_name : thread.sender_name;
   const otherId =
     thread.sender_id === currentUserId ? thread.receiver_id : thread.sender_id;
+  const otherPic =
+    thread.sender_id === currentUserId ? thread.receiver_pic : thread.sender_pic;
 
   return (
     <button
       type="button"
-      onClick={() => onClick(otherId, otherName)}
+      onClick={() => onClick(otherId, otherName, null, otherPic)}
       className={`brand-surface-interactive flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-150 ${isActive
           ? 'border-2 border-[#0f172a] bg-[#eef9ff] shadow-md'
           : 'border-2 border-transparent hover:bg-[#f3fbff]'
         }`}
     >
-      <Avatar name={otherName} />
+      <Avatar name={otherName} url={otherPic} />
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <span className="truncate text-sm font-extrabold text-slate-900">{otherName}</span>
@@ -82,7 +88,7 @@ function ChatBubble({ msg, isOwn }) {
 
   return (
     <div className={`flex items-end gap-3 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-      {!isOwn && <Avatar name={msg.sender_name} size="sm" />}
+      {!isOwn && <Avatar name={msg.sender_name} url={msg.sender_pic} size="sm" />}
       <div
         className={`max-w-[75%] p-4 text-sm leading-relaxed border-2 border-[#0f172a] shadow-md ${isOwn
             ? 'bg-[#fef08a] text-[#0f172a] rotate-[0.5deg]'
@@ -140,6 +146,7 @@ export default function MessagesPage() {
   // Active conversation
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [selectedUserName, setSelectedUserName] = useState('');
+  const [selectedUserPic, setSelectedUserPic] = useState(null);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [convLoading, setConvLoading] = useState(false);
@@ -188,7 +195,11 @@ export default function MessagesPage() {
           existingThread.sender_id === user?.id
             ? existingThread.receiver_name
             : existingThread.sender_name;
-        selectConversation(Number(withId), name, orderId);
+        const pic = 
+          existingThread.sender_id === user?.id
+            ? existingThread.receiver_pic
+            : existingThread.sender_pic;
+        selectConversation(Number(withId), name, orderId, pic);
       } else if (withName) {
         selectConversation(Number(withId), withName, orderId);
       } else {
@@ -219,9 +230,10 @@ export default function MessagesPage() {
     [user?.id]
   );
 
-  function selectConversation(otherId, otherName, orderId = null) {
+  function selectConversation(otherId, otherName, orderId = null, otherPic = null) {
     setSelectedUserId(otherId);
     setSelectedUserName(otherName);
+    setSelectedUserPic(otherPic);
     setSelectedOrderId(orderId);
     setSendError(null);
     setDraft('');
@@ -367,7 +379,7 @@ export default function MessagesPage() {
             {/* Conversation header */}
             <div className="brand-hero flex items-center justify-between rounded-b-none rounded-t-2xl px-5 py-3.5">
               <div className="flex items-center gap-3">
-                <Avatar name={selectedUserName} />
+                <Avatar name={selectedUserName} url={selectedUserPic} />
                 <div>
                   <p className="font-semibold text-slate-900">{selectedUserName}</p>
                   <p className="text-xs text-slate-500">Direct message</p>

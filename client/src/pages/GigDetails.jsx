@@ -153,8 +153,12 @@ export default function GigDetails() {
             </div>
 
             <div className="flex items-center space-x-3">
-              <div className="flex h-14 w-14 items-center justify-center border-2 border-[#0f172a] bg-[#fef08a] text-2xl font-black text-[#0f172a] shadow-sm rotate-[2deg]" style={{ borderRadius: '255px 15px 225px 15px / 15px 225px 15px 255px' }}>
-                {gig.seller_name?.charAt(0).toUpperCase()}
+              <div className="flex h-14 w-14 items-center justify-center border-2 border-[#0f172a] bg-[#fef08a] text-2xl font-black text-[#0f172a] shadow-sm rotate-[2deg] overflow-hidden" style={{ borderRadius: '255px 15px 225px 15px / 15px 225px 15px 255px' }}>
+                {gig.seller_pic ? (
+                  <img src={gig.seller_pic} alt={gig.seller_name} className="h-full w-full object-cover" />
+                ) : (
+                  gig.seller_name?.charAt(0).toUpperCase()
+                )}
               </div>
               <div>
                 <p className="text-xl font-bold font-spline text-[#0f172a]">{gig.seller_name}</p>
@@ -174,7 +178,7 @@ export default function GigDetails() {
               </div>
             </div>
 
-            <div className="brand-surface overflow-hidden">
+            <div className="brand-surface overflow-hidden border-4 border-[#0f172a]" style={{ borderRadius: '25px 425px 25px 455px / 455px 25px 425px 25px' }}>
               <img
                 src={gig.thumbnail_url || 'https://via.placeholder.com/800x500?text=Gig+Preview'}
                 alt={gig.title}

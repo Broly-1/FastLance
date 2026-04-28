@@ -19,6 +19,8 @@ export default function SellerDashboard() {
   const [revisionLimit, setRevisionLimit] = useState(1);
   const [availableTags, setAvailableTags] = useState([]);
   const [tags, setTags] = useState([]);
+  const [thumbnailUrl, setThumbnailUrl] = useState('');
+  const [editingGigId, setEditingGigId] = useState(null);
 
   
   useEffect(() => {
@@ -66,45 +68,77 @@ export default function SellerDashboard() {
         price: parseFloat(price),
         delivery_days: parseInt(deliveryDays, 10),
         revision_limit: parseInt(revisionLimit, 10),
-        thumbnail_url: 'https://via.placeholder.com/400x300?text=Service+Thumbnail' // Placeholder
+        thumbnail_url: thumbnailUrl.trim() || 'https://via.placeholder.com/400x300?text=Service+Thumbnail'
       };
 
-      const response = await fetch('http://localhost:3000/api/gigs', {
-        method: 'POST',
+      const url = editingGigId 
+        ? `http://localhost:3000/api/gigs/${editingGigId}`
+        : 'http://localhost:3000/api/gigs';
+      
+      const method = editingGigId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(gigData)
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create gig');
+        throw new Error(`Failed to ${editingGigId ? 'update' : 'create'} gig`);
       }
 
-      const resData = await response.json();
-      const newGigId = resData.gig_id || resData.insertId;
-      const newGig = { gig_id: newGigId, ...gigData, is_active: 1 };
-      
-      if (tags.length > 0) {
-        await Promise.all(tags.map(tag => 
-          fetch(`http://localhost:3000/api/gigs/${newGigId}/tags`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: tag }) // Backend resolves by name currently, or we pass tag if it expects name
-          })
-        ));
+      if (editingGigId) {
+        // Update local state
+        setGigs(gigs.map(g => g.gig_id === editingGigId ? { ...g, ...gigData } : g));
+        alert('Gig updated successfully!');
+      } else {
+        const resData = await response.json();
+        const newGigId = resData.gig_id || resData.insertId;
+        const newGig = { gig_id: newGigId, ...gigData, is_active: 1 };
+        
+        if (tags.length > 0) {
+          await Promise.all(tags.map(tag => 
+            fetch(`http://localhost:3000/api/gigs/${newGigId}/tags`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: tag })
+            })
+          ));
+        }
+        setGigs([newGig, ...gigs]);
+        alert('Gig published successfully!');
       }
-      
-      setGigs([newGig, ...gigs]);
+
+      // Reset and close
       setShowForm(false);
-      // Reset Form
+      setEditingGigId(null);
       setTitle('');
       setDescription('');
       setPrice('');
       setDeliveryDays('');
-      setTags('');
+      setRevisionLimit(1);
+      setThumbnailUrl('');
+      setTags([]);
       
     } catch (err) {
       alert(err.message);
     }
+  };
+
+  const handleEditClick = (gig) => {
+    setEditingGigId(gig.gig_id);
+    setTitle(gig.title);
+    setDescription(gig.description);
+    setCategory(gig.category);
+    setPrice(gig.price);
+    setDeliveryDays(gig.delivery_days);
+    setRevisionLimit(gig.revision_limit);
+    setThumbnailUrl(gig.thumbnail_url || '');
+    // Tags are tricky as we need to fetch them for the gig
+    // For now we just reset tags or let user re-select
+    setTags([]); 
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
@@ -126,12 +160,16 @@ export default function SellerDashboard() {
       {/* Create Gig Form */}
       {showForm && (
         <div className="brand-surface mb-8 p-6">
-          <h2 className="mb-4 text-xl font-semibold text-slate-800">Create a New Service (Gig)</h2>
+          <h2 className="mb-4 text-xl font-semibold text-slate-800">{editingGigId ? 'Edit Your Service' : 'Create a New Service (Gig)'}</h2>
           <form onSubmit={handleCreateGig} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="mb-1 block text-sm font-medium text-slate-700">Gig Title</label>
                 <input required type="text" value={title} onChange={e=>setTitle(e.target.value)} className="brand-input" placeholder="I will build a fullstack React application..." />
+              </div>
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-sm font-medium text-slate-700">Thumbnail Image URL (Direct Link)</label>
+                <input type="url" value={thumbnailUrl} onChange={e=>setThumbnailUrl(e.target.value)} className="brand-input" placeholder="https://images.unsplash.com/photo-..." />
               </div>
               <div className="md:col-span-2">
                 <label className="mb-1 block text-sm font-medium text-slate-700">Description</label>
@@ -186,7 +224,7 @@ export default function SellerDashboard() {
             </div>
             <div className="pt-4 flex justify-end">
               <button type="submit" className="brand-button-primary rounded-xl px-6 py-2.5 font-medium transition shadow-sm">
-                Publish Gig
+                {editingGigId ? 'Save Changes' : 'Publish Gig'}
               </button>
             </div>
           </form>
@@ -222,12 +260,22 @@ export default function SellerDashboard() {
                     </span>
                   </div>
                   
-                  <h3 className="mb-3 line-clamp-2 text-xl font-bold font-spline text-[#0f172a] leading-tight hover:underline decoration-[#fef08a] decoration-4">
+                  <h3 className="mb-3 line-clamp-2 text-xl font-bold font-spline text-[#0f172a] leading-tight hover:underline decoration-[#fef08a] decoration-4 cursor-pointer" onClick={() => navigate(`/gigs/${gig.gig_id}`)}>
                     {gig.title}
                   </h3>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditClick(gig);
+                    }}
+                    className="mb-4 self-start brand-button-neutral py-1 px-3 text-[10px] font-black uppercase tracking-widest bg-white border-2 border-[#0f172a] shadow-[2px_2px_0px_#0f172a] hover:bg-[#fef08a] transition-all"
+                  >
+                    Edit Gig
+                  </button>
                   
                   <div className="mt-auto pt-6 flex items-center justify-between border-t-2 border-[#0f172a] border-dashed">
-                    <span className="text-xs font-bold text-[#50616b] uppercase italic">Delivery: {gig.delivery_days} days</span>
+                    <span className="text-xs font-bold text-[#50616b] uppercase italic" onClick={() => navigate(`/gigs/${gig.gig_id}`)}>Delivery: {gig.delivery_days} days</span>
                     <div className="relative">
                       <span className="absolute -inset-1 bg-[#fef08a] rounded-sm rotate-[-2deg]"></span>
                       <span className="relative text-2xl font-black text-[#0f172a] italic">${gig.price}</span>

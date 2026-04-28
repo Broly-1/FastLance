@@ -20,6 +20,9 @@ export default function AdminDashboard() {
   // Active tab: 'overview' | 'users' | 'orders' | 'disputes' | 'tags'
   const [tab, setTab] = useState('overview');
 
+  // User editing state
+  const [editingUser, setEditingUser] = useState(null);
+
   // Dispute resolution state
   const [resolvingId, setResolvingId]         = useState(null);
   const [resolution, setResolution]           = useState('');
@@ -68,7 +71,10 @@ export default function AdminDashboard() {
       setResolveSubmitting(true);
       const res = await fetch(`${API}/api/disputes/${disputeId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-role': user?.role || 'Admin'
+        },
         body: JSON.stringify({ status: 'Resolved', resolution: trimmed, order_action: orderAction }),
       });
       if (!res.ok) throw new Error('Failed to resolve dispute.');
@@ -106,6 +112,25 @@ export default function AdminDashboard() {
         headers: { 'x-user-role': user?.role || 'Admin' }
       });
       if (!res.ok) throw new Error(`Failed to ${action} user.`);
+      await fetchAll();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const handleUpdateUser = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API}/api/users/${editingUser.user_id}`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-user-role': user?.role || 'Admin' 
+        },
+        body: JSON.stringify(editingUser)
+      });
+      if (!res.ok) throw new Error('Failed to update user.');
+      setEditingUser(null);
       await fetchAll();
     } catch (err) {
       alert(err.message);
@@ -436,6 +461,12 @@ export default function AdminDashboard() {
                       {u.role !== 'Admin' && (
                         <div className="flex justify-end gap-2">
                           <button
+                            onClick={() => setEditingUser(u)}
+                            className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-600 transition hover:bg-blue-50"
+                          >
+                            Edit
+                          </button>
+                          <button
                             onClick={() => handleToggleSuspendUser(u.user_id, u.is_active)}
                             className="rounded-lg border border-orange-200 bg-white px-3 py-1.5 text-xs font-semibold text-orange-600 transition hover:bg-orange-50"
                           >
@@ -760,6 +791,80 @@ export default function AdminDashboard() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── EDIT USER MODAL ── */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="brand-surface w-full max-w-md p-8 animate-in fade-in zoom-in duration-200 rotate-[0.5deg]">
+            <h3 className="text-xl font-black text-[#0f172a] uppercase italic mb-6">Edit User Profile</h3>
+            <form onSubmit={handleUpdateUser} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#50616b]">Username</label>
+                <input 
+                  type="text" 
+                  value={editingUser.username} 
+                  onChange={e => setEditingUser({...editingUser, username: e.target.value})} 
+                  className="brand-input text-sm"
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#50616b]">Email</label>
+                <input 
+                  type="email" 
+                  value={editingUser.email} 
+                  onChange={e => setEditingUser({...editingUser, email: e.target.value})} 
+                  className="brand-input text-sm"
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#50616b]">Role</label>
+                <select 
+                  value={editingUser.role} 
+                  onChange={e => setEditingUser({...editingUser, role: e.target.value})} 
+                  className="brand-input text-sm"
+                >
+                  <option value="Buyer">Buyer</option>
+                  <option value="Seller">Seller</option>
+                  <option value="Both">Both</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#50616b]">Profile Pic URL</label>
+                <input 
+                  type="url" 
+                  value={editingUser.profile_pic_url || ''} 
+                  onChange={e => setEditingUser({...editingUser, profile_pic_url: e.target.value})} 
+                  className="brand-input text-sm"
+                  placeholder="https://..."
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#50616b]">Bio</label>
+                <textarea 
+                  value={editingUser.bio || ''} 
+                  onChange={e => setEditingUser({...editingUser, bio: e.target.value})} 
+                  className="brand-input text-sm"
+                  rows="3"
+                />
+              </div>
+              <div className="flex gap-4 pt-4">
+                <button type="submit" className="brand-button-primary flex-1 py-3 text-xs uppercase tracking-widest font-black">
+                  Save Changes
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setEditingUser(null)} 
+                  className="brand-button-neutral px-8 text-xs uppercase tracking-widest font-black"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -15,7 +15,8 @@ exports.getConversation = async (req, res) => {
   try {
     const { userId1, userId2 } = req.params;
     const [rows] = await pool.query(
-      `SELECT m.*, s.username AS sender_name, r.username AS receiver_name
+      `SELECT m.*, s.username AS sender_name, s.profile_pic_url AS sender_pic,
+              r.username AS receiver_name, r.profile_pic_url AS receiver_pic
        FROM Messages m
        JOIN Users s ON m.sender_id = s.user_id
        JOIN Users r ON m.receiver_id = r.user_id
@@ -35,7 +36,8 @@ exports.getInbox = async (req, res) => {
   try {
     const userId = req.params.userId;
     const [rows] = await pool.query(
-      `SELECT m.*, s.username AS sender_name, r.username AS receiver_name
+      `SELECT m.*, s.username AS sender_name, s.profile_pic_url AS sender_pic,
+              r.username AS receiver_name, r.profile_pic_url AS receiver_pic
        FROM Messages m
        JOIN Users s ON m.sender_id = s.user_id
        JOIN Users r ON m.receiver_id = r.user_id

@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 const API = 'http://localhost:3000';
 
 export default function Profile() {
-  const { user, login } = useAuth();
+  const { user, login, updateUser } = useAuth();
   const navigate = useNavigate();
 
   const [profile, setProfile]           = useState(null);
@@ -60,6 +60,13 @@ export default function Profile() {
         throw new Error(d.error || 'Failed to save.');
       }
       setSaveSuccess('Profile updated successfully!');
+      // Update local context
+      updateUser({
+        username: username.trim(),
+        email: email.trim(),
+        profile_pic_url: profilePic.trim() || null,
+        role,
+      });
       // Refresh profile data
       const updated = await fetch(`${API}/api/users/${user.id}`).then((r) => r.json());
       setProfile(updated);
