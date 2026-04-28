@@ -123,6 +123,32 @@ exports.create = async (req, res) => {
       }
 
       await conn.commit();
+
+      // Fire-and-forget notifications
+      try {
+        const [gigRows] = await pool.query(
+          'SELECT g.title FROM Gigs g JOIN Orders o ON g.gig_id = o.gig_id WHERE o.order_id = ?',
+          [order_id]
+        );
+        const gigTitle = gigRows[0]?.title || 'your order';
+
+        if (isRevision) {
+          // Notify seller of revision request
+          await pool.query(
+            'INSERT INTO Notifications (user_id, type, title, body) OUTPUT INSERTED.notification_id VALUES (?, ?, ?, ?)',
+            [order.seller_id, 'Order', 'Revision Requested', `A revision has been requested for Order #${order_id} ("${gigTitle}").`]
+          );
+        } else {
+          // Notify buyer of delivery
+          await pool.query(
+            'INSERT INTO Notifications (user_id, type, title, body) OUTPUT INSERTED.notification_id VALUES (?, ?, ?, ?)',
+            [order.buyer_id, 'Order', 'Order Delivered', `The work for Order #${order_id} ("${gigTitle}") has been delivered. Please review it!`]
+          );
+        }
+      } catch (notifErr) {
+        console.error('Notification error in submissionsController:', notifErr.message);
+      }
+
       res.status(201).json({
         message: isRevision ? 'Revision requested' : 'Submission created',
         submission_id: result.insertId,

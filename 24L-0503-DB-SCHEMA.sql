@@ -122,7 +122,7 @@ CREATE TABLE Milestones (
     description      TEXT,
     deadline         DATETIME NOT NULL,
     amount           DECIMAL(10, 2),             -- payment tied to this milestone
-    status           ENUM('Pending', 'In Progress', 'Completed', 'Overdue') DEFAULT 'Pending',
+    status           ENUM('Pending', 'In Progress', 'Delivered', 'Completed', 'Overdue') DEFAULT 'Pending',
     is_critical_path BOOLEAN DEFAULT FALSE,
     completed_at     DATETIME,
     CONSTRAINT fk_milestone_order FOREIGN KEY (order_id)

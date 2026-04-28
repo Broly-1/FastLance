@@ -231,27 +231,41 @@ exports.updateStatus = async (req, res) => {
     }
 
     const amount = Number(order.total_price);
+    
+    // Calculate how much was already paid via milestones
+    const [paidRows] = await pool.query(
+      "SELECT COALESCE(SUM(amount), 0) AS already_paid FROM Milestones WHERE order_id = ? AND status = 'Completed'",
+      [req.params.id]
+    );
+    const alreadyPaid = Number(paidRows[0].already_paid);
 
-    // Completing: buyer already paid at order creation — only credit the seller
+    // Completing: buyer already paid at order creation — credit the seller the remaining balance
     if (status === 'Completed' && currentStatus !== 'Completed') {
       const conn = await pool.getConnection();
       try {
         await conn.beginTransaction();
+
+        const remainingAmount = Math.max(0, amount - alreadyPaid);
+
         await conn.query(
           'UPDATE Orders SET status = ?, updated_at = GETDATE() WHERE order_id = ?',
           [status, req.params.id]
         );
-        await conn.query(
-          'INSERT INTO Wallet_Transactions (user_id, order_id, amount, type, description) OUTPUT INSERTED.txn_id VALUES (?, ?, ?, ?, ?)',
-          [order.seller_id, order.order_id, amount, 'Earning', `Earning from Order #${order.order_id}`]
-        );
-        await conn.query(
-          'UPDATE Users SET wallet_balance = wallet_balance + ? WHERE user_id = ?',
-          [amount, order.seller_id]
-        );
+
+        if (remainingAmount > 0) {
+          await conn.query(
+            'INSERT INTO Wallet_Transactions (user_id, order_id, amount, type, description) OUTPUT INSERTED.txn_id VALUES (?, ?, ?, ?, ?)',
+            [order.seller_id, order.order_id, remainingAmount, 'Earning', `Final earning from Order #${order.order_id}`]
+          );
+          await conn.query(
+            'UPDATE Users SET wallet_balance = wallet_balance + ? WHERE user_id = ?',
+            [remainingAmount, order.seller_id]
+          );
+        }
+        
         await conn.commit();
         notify(order.buyer_id, 'Order', 'Order Completed', `Order #${order.order_id} ("${order.gig_title}") has been completed. Thank you!`);
-        notify(order.seller_id, 'Order', 'Order Completed', `Order #${order.order_id} ("${order.gig_title}") is complete — your earnings have been credited.`);
+        notify(order.seller_id, 'Order', 'Order Completed', `Order #${order.order_id} ("${order.gig_title}") is complete — your final earnings ($${remainingAmount.toFixed(2)}) have been credited.`);
         return res.json({ message: 'Order status updated', status });
 
       } catch (err) {
@@ -262,25 +276,32 @@ exports.updateStatus = async (req, res) => {
       }
     }
 
-    // Cancelling: refund the buyer what they paid at order creation
+    // Cancelling: refund the buyer the escrow balance (total price - what was already paid to seller)
     if (status === 'Cancelled' && currentStatus !== 'Cancelled') {
       const conn = await pool.getConnection();
       try {
         await conn.beginTransaction();
+
+        const refundAmount = Math.max(0, amount - alreadyPaid);
+
         await conn.query(
           'UPDATE Orders SET status = ?, updated_at = GETDATE() WHERE order_id = ?',
           [status, req.params.id]
         );
-        await conn.query(
-          'INSERT INTO Wallet_Transactions (user_id, order_id, amount, type, description) OUTPUT INSERTED.txn_id VALUES (?, ?, ?, ?, ?)',
-          [order.buyer_id, order.order_id, amount, 'Refund', `Refund for cancelled Order #${order.order_id}`]
-        );
-        await conn.query(
-          'UPDATE Users SET wallet_balance = wallet_balance + ? WHERE user_id = ?',
-          [amount, order.buyer_id]
-        );
+
+        if (refundAmount > 0) {
+          await conn.query(
+            'INSERT INTO Wallet_Transactions (user_id, order_id, amount, type, description) OUTPUT INSERTED.txn_id VALUES (?, ?, ?, ?, ?)',
+            [order.buyer_id, order.order_id, refundAmount, 'Refund', `Refund for cancelled Order #${order.order_id} (adjusted for paid milestones)`]
+          );
+          await conn.query(
+            'UPDATE Users SET wallet_balance = wallet_balance + ? WHERE user_id = ?',
+            [refundAmount, order.buyer_id]
+          );
+        }
+        
         await conn.commit();
-        notify(order.buyer_id, 'Order', 'Order Cancelled & Refunded', `Order #${order.order_id} has been cancelled. Your payment has been refunded.`);
+        notify(order.buyer_id, 'Order', 'Order Cancelled & Refunded', `Order #${order.order_id} has been cancelled. Your remaining payment of $${refundAmount.toFixed(2)} has been refunded.`);
         notify(order.seller_id, 'Order', 'Order Cancelled', `Order #${order.order_id} has been cancelled by the buyer.`);
         return res.json({ message: 'Order status updated', status });
 
@@ -298,9 +319,14 @@ exports.updateStatus = async (req, res) => {
       [status, req.params.id]
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Order not found' });
-    // Notify both parties of general status change
-    notify(order.buyer_id, 'System', `Order Status: ${status}`, `Order #${order.order_id} status changed to ${status}.`);
-    notify(order.seller_id, 'System', `Order Status: ${status}`, `Order #${order.order_id} status changed to ${status}.`);
+    // Notify parties of status change
+    if (status === 'Delivered') {
+      notify(order.buyer_id, 'Order', 'Order Delivered', `The seller has delivered your order #${order.order_id} ("${order.gig_title}"). Please review it!`);
+      notify(order.seller_id, 'Order', 'Order Delivered', `You have marked Order #${order.order_id} ("${order.gig_title}") as delivered.`);
+    } else {
+      notify(order.buyer_id, 'System', `Order Update: ${status}`, `Order #${order.order_id} status is now ${status}.`);
+      notify(order.seller_id, 'System', `Order Update: ${status}`, `Order #${order.order_id} status is now ${status}.`);
+    }
     res.json({ message: 'Order status updated', status });
   } catch (err) {
     res.status(500).json({ error: err.message });

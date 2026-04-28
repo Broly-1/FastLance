@@ -60,15 +60,30 @@ exports.create = async (req, res) => {
 
 // PUT update milestone
 exports.update = async (req, res) => {
+  const { title, description, deadline, amount, status, is_critical_path, completed_at } = req.body;
+  const conn = await pool.getConnection();
+
   try {
-    const { title, description, deadline, amount, status, is_critical_path, completed_at } = req.body;
-    
-    // Fetch old status to check for completion
-    const [oldRows] = await pool.query('SELECT order_id, title, status FROM Milestones WHERE milestone_id = ?', [req.params.id]);
-    if (oldRows.length === 0) return res.status(404).json({ error: 'Milestone not found' });
+    await conn.beginTransaction();
+
+    // Fetch old status to check for completion and fetch order info for payment
+    const [oldRows] = await conn.query(
+      `SELECT m.order_id, m.title, m.status, m.amount, o.seller_id, g.title as gig_title 
+       FROM Milestones m
+       JOIN Orders o ON m.order_id = o.order_id
+       JOIN Gigs g ON o.gig_id = g.gig_id
+       WHERE m.milestone_id = ?`, 
+      [req.params.id]
+    );
+
+    if (oldRows.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Milestone not found' });
+    }
     const oldMilestone = oldRows[0];
 
-    const [result] = await pool.query(
+    // 1. Update the milestone record
+    const [result] = await conn.query(
       `UPDATE Milestones SET title = COALESCE(?, title), description = COALESCE(?, description),
        deadline = COALESCE(?, deadline), amount = COALESCE(?, amount),
        status = COALESCE(?, status), is_critical_path = COALESCE(?, is_critical_path),
@@ -77,34 +92,45 @@ exports.update = async (req, res) => {
       [title, description, deadline, amount, status, is_critical_path, completed_at, req.params.id]
     );
 
-    if (result.affectedRows === 0) return res.status(404).json({ error: 'Milestone not found' });
+    if (result.affectedRows === 0) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'Milestone not found' });
+    }
 
-    // Notify if status changed to Completed
+    // 2. Handle Payment: Release funds to seller if status flipped to 'Completed'
     if (status === 'Completed' && oldMilestone.status !== 'Completed') {
-        const [orderRows] = await pool.query(
-          'SELECT o.buyer_id, o.seller_id, g.title FROM Orders o JOIN Gigs g ON o.gig_id = g.gig_id WHERE o.order_id = ?',
-          [oldMilestone.order_id]
+      const payAmount = Number(oldMilestone.amount);
+      if (payAmount > 0) {
+        // Record earning for the seller
+        await conn.query(
+          'INSERT INTO Wallet_Transactions (user_id, order_id, amount, type, description) OUTPUT INSERTED.txn_id VALUES (?, ?, ?, ?, ?)',
+          [oldMilestone.seller_id, oldMilestone.order_id, payAmount, 'Earning', `Earning for milestone "${oldMilestone.title}" (Order #${oldMilestone.order_id})`]
         );
-        if (orderRows.length > 0) {
-            notify(orderRows[0].buyer_id, 'Order', 'Milestone Approved', `The milestone "${oldMilestone.title}" for "${orderRows[0].title}" has been approved and completed.`);
-            notify(orderRows[0].seller_id, 'Order', 'Milestone Approved', `Your milestone "${oldMilestone.title}" for "${orderRows[0].title}" has been approved.`);
-        }
-    }
-
-    // Notify if status changed to Delivered
-    if (status === 'Delivered' && oldMilestone.status !== 'Delivered') {
-      const [orderRows] = await pool.query(
-        'SELECT o.buyer_id, g.title FROM Orders o JOIN Gigs g ON o.gig_id = g.gig_id WHERE o.order_id = ?',
-        [oldMilestone.order_id]
-      );
-      if (orderRows.length > 0) {
-          notify(orderRows[0].buyer_id, 'Order', 'Milestone Delivered', `The milestone "${oldMilestone.title}" for "${orderRows[0].title}" has been delivered and is awaiting your approval.`);
+        // Credit seller wallet
+        await conn.query(
+          'UPDATE Users SET wallet_balance = wallet_balance + ? WHERE user_id = ?',
+          [payAmount, oldMilestone.seller_id]
+        );
       }
+
+      // Notify both parties of approval
+      notify(oldMilestone.buyer_id, 'Order', 'Milestone Approved', `The milestone "${oldMilestone.title}" for "${oldMilestone.gig_title}" has been approved and completed.`);
+      notify(oldMilestone.seller_id, 'Order', 'Milestone Approved', `Your milestone "${oldMilestone.title}" for "${oldMilestone.gig_title}" has been approved. Funds released.`);
     }
 
+    // 3. Notify of Delivery
+    if (status === 'Delivered' && oldMilestone.status !== 'Delivered') {
+      notify(oldMilestone.buyer_id, 'Order', 'Milestone Delivered', `The milestone "${oldMilestone.title}" for "${oldMilestone.gig_title}" has been delivered and is awaiting your approval.`);
+    }
+
+    await conn.commit();
     res.json({ message: 'Milestone updated' });
+
   } catch (err) {
+    await conn.rollback();
     res.status(500).json({ error: err.message });
+  } finally {
+    conn.release();
   }
 };
 

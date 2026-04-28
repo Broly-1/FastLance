@@ -157,7 +157,7 @@ CREATE TABLE Milestones (
     deadline         DATETIME2 NOT NULL,
     amount           DECIMAL(10,2),
     status           NVARCHAR(20) DEFAULT 'Pending'
-                         CHECK (status IN ('Pending','In Progress','Completed','Overdue')),
+                         CHECK (status IN ('Pending','In Progress','Delivered','Completed','Overdue')),
     is_critical_path BIT DEFAULT 0,
     completed_at     DATETIME2,
     CONSTRAINT fk_milestone_order FOREIGN KEY (order_id)
