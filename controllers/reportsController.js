@@ -199,7 +199,7 @@ exports.revenueByMonth = async (req, res) => {
 exports.overdueMilestones = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      `SELECT m.*, o.order_id, g.title AS gig_title,
+      `SELECT m.*, g.title AS gig_title,
               s.username AS seller_name, b.username AS buyer_name
        FROM Milestones m
        JOIN Orders o ON m.order_id = o.order_id

@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 const API = 'http://localhost:3000';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [summary, setSummary]       = useState(null);
   const [topSellers, setTopSellers] = useState([]);

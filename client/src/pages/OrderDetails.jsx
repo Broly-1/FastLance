@@ -533,7 +533,8 @@ function OrderDetails() {
 
   const isSeller = user?.id === order.seller_id;
   const isBuyer = user?.id === order.buyer_id;
-  const isParticipant = isSeller || isBuyer;
+  const isAdmin = user?.role === 'Admin';
+  const isParticipant = isSeller || isBuyer || isAdmin;
 
   if (!isParticipant) {
     return (
